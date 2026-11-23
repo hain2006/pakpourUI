@@ -1,0 +1,15 @@
+
+page "Counter" {
+
+    state count = 0
+
+    column {
+        heading "Welcome to pakpourUI"
+
+        text "Current count: {count}"
+
+        button "Increase" {
+            count = count + 1
+        }
+    }
+}
