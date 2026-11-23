@@ -1,59 +1,55 @@
-<CodeBlock language="typescript" editable>
-type Effect = () => void;
 
+type Effect = () => void;
 
 let activeEffect: Effect | undefined;
 
 export function signal<T>(initialValue: T) {
-let value = initialValue;
+    let value = initialValue;
 
-const subscribers = new Set<Effect>();
+    const subscribers = new Set<Effect>();
 
-return {
-get value(): T {
-if (activeEffect) {
-subscribers.add(activeEffect);
-}
+    return {
+        get value(): T {
+            if (activeEffect) {
+                subscribers.add(activeEffect);
+            }
 
-return value;
-},
+            return value;
+        },
 
-set value(newValue: T) {
-if (Object.is(value, newValue)) return;
+        set value(newValue: T) {
+            if (Object.is(value, newValue)) return;
 
-value = newValue;
+            value = newValue;
 
-subscribers.forEach(effect => effect());
-}
-};
+            subscribers.forEach(effect => effect());
+        }
+    };
 }
 
 export function effect(callback: Effect): void {
-const run = () => {
-activeEffect = run;
+    const run = () => {
+        activeEffect = run;
 
-try {
-callback();
-} finally {
-activeEffect = undefined;
+        try {
+            callback();
+        } finally {
+            activeEffect = undefined;
+        }
+    };
+
+    run();
 }
-};
 
-run();
-}
-
-export function createElement(
-tag: string
-): HTMLElement {
-return document.createElement(tag);
+export function createElement(tag: string): HTMLElement {
+    return document.createElement(tag);
 }
 
 export function bindText(
-element: HTMLElement,
-getter: () => string
+    element: HTMLElement,
+    getter: () => string
 ): void {
-effect(() => {
-element.textContent = getter();
-});
+    effect(() => {
+        element.textContent = getter();
+    });
 }
-</CodeBlock>
