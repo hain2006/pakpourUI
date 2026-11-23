@@ -1,13 +1,14 @@
 
 import type { Token } from "./token";
 import { TokenType } from "./token";
+import type { SourcePosition, CharacterSpan } from "./source-location";
 
 export class Lexer {
     private position = 0;
     private line = 1;
     private column = 1;
 
-    constructor(private source: string) {}
+    constructor(private source: string) { }
 
     private peek(offset = 0): string {
         return this.source[this.position + offset] ?? "";
@@ -30,9 +31,31 @@ export class Lexer {
         type: TokenType,
         value: string,
         line: number,
-        column: number
+        column: number,
+        startOffset: number
     ): Token {
-        return { type, value, line, column };
+        const start: SourcePosition = {
+            offset: startOffset,
+            line,
+            column
+        };
+
+        const end: SourcePosition = {
+            offset: this.position,
+            line: this.line,
+            column: this.column
+        };
+
+        return {
+            type,
+            value,
+            line,
+            column,
+            span: {
+                start,
+                end
+            }
+        };
     }
 
     private skipWhitespace(): void {
@@ -56,6 +79,7 @@ export class Lexer {
     private readIdentifier(): Token {
         const line = this.line;
         const column = this.column;
+        const startOffset = this.position;
 
         let value = "";
 
@@ -99,13 +123,15 @@ export class Lexer {
             keywords[value] ?? TokenType.Identifier,
             value,
             line,
-            column
+            column,
+            startOffset
         );
     }
 
     private readNumber(): Token {
         const line = this.line;
         const column = this.column;
+        const startOffset = this.position;
 
         let value = "";
 
@@ -117,22 +143,33 @@ export class Lexer {
             TokenType.Number,
             value,
             line,
-            column
+            column,
+            startOffset
         );
     }
 
     private readString(): Token {
         const line = this.line;
         const column = this.column;
+        const startOffset = this.position;
 
         this.advance();
 
         let value = "";
+        const characterSpans: CharacterSpan[] = [];
 
         while (
             this.peek() !== '"' &&
             this.peek() !== ""
         ) {
+            const charStart: SourcePosition = {
+                offset: this.position,
+                line: this.line,
+                column: this.column
+            };
+
+            let decoded = "";
+
             if (this.peek() === "\\") {
                 this.advance();
 
@@ -150,9 +187,24 @@ export class Lexer {
                     "\\": "\\"
                 };
 
-                value += escapeMap[escaped] ?? escaped;
+                decoded = escapeMap[escaped] ?? escaped;
             } else {
-                value += this.advance();
+                decoded = this.advance();
+            }
+
+            const charEnd: SourcePosition = {
+                offset: this.position,
+                line: this.line,
+                column: this.column
+            };
+
+            value += decoded;
+
+            for (let i = 0; i < decoded.length; i++) {
+                characterSpans.push({
+                    start: charStart,
+                    end: charEnd
+                });
             }
         }
 
@@ -164,17 +216,23 @@ export class Lexer {
 
         this.advance();
 
-        return this.createToken(
+        const token = this.createToken(
             TokenType.String,
             value,
             line,
-            column
+            column,
+            startOffset
         );
+
+        token.characterSpans = characterSpans;
+
+        return token;
     }
 
     private readOperator(): Token | null {
         const line = this.line;
         const column = this.column;
+        const startOffset = this.position;
 
         const operators: Record<string, TokenType> = {
             ">=": TokenType.GreaterThanOrEqual,
@@ -205,7 +263,8 @@ export class Lexer {
                 operators[twoCharacters],
                 twoCharacters,
                 line,
-                column
+                column,
+                startOffset
             );
         }
 
@@ -218,7 +277,8 @@ export class Lexer {
                 operators[oneCharacter],
                 oneCharacter,
                 line,
-                column
+                column,
+                startOffset
             );
         }
 
@@ -277,7 +337,8 @@ export class Lexer {
                 TokenType.EOF,
                 "",
                 this.line,
-                this.column
+                this.column,
+                this.position
             )
         );
 

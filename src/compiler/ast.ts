@@ -2,8 +2,12 @@
 /* =========================================
    Program
 ========================================= */
+import type { SourceSpan } from "./source-location";
 
-export type ProgramNode = {
+export type LocatedNode = {
+    span?: SourceSpan;
+};
+export type ProgramNode = LocatedNode & {
     type: "Program";
     body: StatementNode[];
 };
@@ -31,13 +35,13 @@ export type StatementNode =
    Site
 ========================================= */
 
-export type SiteNode = {
+export type SiteNode = LocatedNode & {
     type: "Site";
     name: string;
     pages: SitePageNode[];
 };
 
-export type SitePageNode = {
+export type SitePageNode = LocatedNode & {
     type: "SitePage";
     name: string;
     children: PageContentNode[];
@@ -52,7 +56,7 @@ export type PageContentNode =
    SEO
 ========================================= */
 
-export type SeoNode = {
+export type SeoNode = LocatedNode & {
     type: "Seo";
     title?: string;
     description?: string;
@@ -66,7 +70,7 @@ export type SeoNode = {
 
 export type LayoutDirection = "vertical" | "horizontal";
 
-export type LayoutNode = {
+export type LayoutNode = LocatedNode & {
     type: "Layout";
     direction: LayoutDirection;
     children: LayoutContentNode[];
@@ -84,23 +88,23 @@ export type LayoutContentNode =
    UI Elements
 ========================================= */
 
-export type HeadingNode = {
+export type HeadingNode = LocatedNode & {
     type: "Heading";
     level: number;
     text: string;
 };
 
-export type ParagraphNode = {
+export type ParagraphNode = LocatedNode & {
     type: "Paragraph";
     text: string;
 };
 
-export type TextNode = {
+export type TextNode = LocatedNode & {
     type: "Text";
     text: string;
 };
 
-export type ActionNode = {
+export type ActionNode = LocatedNode & {
     type: "Action";
     label: string;
     children: ActionCommandNode[];
@@ -109,7 +113,7 @@ export type ActionNode = {
 export type ActionCommandNode =
     | NavigateNode;
 
-export type NavigateNode = {
+export type NavigateNode = LocatedNode & {
     type: "Navigate";
     path: string;
 };
@@ -118,7 +122,7 @@ export type NavigateNode = {
    Conditional Rendering
 ========================================= */
 
-export type WhenNode = {
+export type WhenNode = LocatedNode & {
     type: "When";
     condition: ExpressionNode;
     children: LayoutContentNode[];
@@ -129,13 +133,13 @@ export type WhenNode = {
    Backward compatibility with old syntax
 ========================================= */
 
-export type PageNode = {
+export type PageNode = LocatedNode & {
     type: "Page";
     name: string;
     children: StatementNode[];
 };
 
-export type ElementNode = {
+export type ElementNode = LocatedNode & {
     type: "Element";
     name: string;
     text?: string;
@@ -146,13 +150,13 @@ export type ElementNode = {
    State Management
 ========================================= */
 
-export type StateNode = {
+export type StateNode = LocatedNode & {
     type: "State";
     name: string;
     value: ExpressionNode;
 };
 
-export type AssignmentNode = {
+export type AssignmentNode = LocatedNode & {
     type: "Assignment";
     name: string;
     value: ExpressionNode;
@@ -170,34 +174,34 @@ export type ExpressionNode =
     | BinaryExpressionNode
     | UnaryExpressionNode;
 
-export type NumberLiteralNode = {
+export type NumberLiteralNode = LocatedNode & {
     type: "NumberLiteral";
     value: number;
 };
 
-export type StringLiteralNode = {
+export type StringLiteralNode = LocatedNode & {
     type: "StringLiteral";
     value: string;
 };
 
-export type BooleanLiteralNode = {
+export type BooleanLiteralNode = LocatedNode & {
     type: "BooleanLiteral";
     value: boolean;
 };
 
-export type IdentifierNode = {
+export type IdentifierNode = LocatedNode & {
     type: "Identifier";
     name: string;
 };
 
-export type BinaryExpressionNode = {
+export type BinaryExpressionNode = LocatedNode & {
     type: "BinaryExpression";
     operator: string;
     left: ExpressionNode;
     right: ExpressionNode;
 };
 
-export type UnaryExpressionNode = {
+export type UnaryExpressionNode = LocatedNode & {
     type: "UnaryExpression";
     operator: string;
     argument: ExpressionNode;

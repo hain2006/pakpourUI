@@ -1,6 +1,7 @@
 
 import type { Token } from "./token";
 import { TokenType } from "./token";
+import type { SourceSpan } from "./source-location";
 
 import type {
     ProgramNode,
@@ -28,22 +29,36 @@ import type {
 export class Parser {
     private position = 0;
 
-    constructor(private tokens: Token[]) {}
+    constructor(private tokens: Token[]) { }
 
-   private peek(): Token {
-    return this.tokens[this.position]
-        ?? this.tokens[this.tokens.length - 1]!;
-}
-
-private advance(): Token {
-    const token = this.peek();
-
-    if (token.type !== TokenType.EOF) {
-        this.position++;
+    private peek(): Token {
+        return this.tokens[this.position]
+            ?? this.tokens[this.tokens.length - 1]!;
     }
 
-    return token;
-}
+    private advance(): Token {
+        const token = this.peek();
+
+        if (token.type !== TokenType.EOF) {
+            this.position++;
+        }
+
+        return token;
+    }
+
+    private createSpan(
+        start: Token,
+        end: Token
+    ): SourceSpan {
+        return {
+            start: start.span.start,
+            end: end.span.end
+        };
+    }
+
+    private currentToken(): Token {
+        return this.peek();
+    }
 
     private expect(type: TokenType): Token {
         const token = this.peek();
@@ -288,7 +303,7 @@ private advance(): Token {
     }
 
     private parseHeading(): HeadingNode {
-        this.expect(TokenType.Heading);
+        const start = this.expect(TokenType.Heading);
 
         const levelToken = this.expect(TokenType.Number);
         const level = Number(levelToken.value);
@@ -300,30 +315,35 @@ private advance(): Token {
             );
         }
 
-        const text = this.expect(TokenType.String).value;
+        const textToken = this.expect(TokenType.String);
 
         return {
             type: "Heading",
             level,
-            text
+            text: textToken.value,
+            span: this.createSpan(start, textToken)
         };
     }
 
     private parseParagraph(): ParagraphNode {
-        this.expect(TokenType.Paragraph);
+        const start = this.expect(TokenType.Paragraph);
+        const textToken = this.expect(TokenType.String);
 
         return {
             type: "Paragraph",
-            text: this.expect(TokenType.String).value
+            text: textToken.value,
+            span: this.createSpan(start, textToken)
         };
     }
 
     private parseText(): TextNode {
-        this.expect(TokenType.Text);
+        const start = this.expect(TokenType.Text);
+        const textToken = this.expect(TokenType.String);
 
         return {
             type: "Text",
-            text: this.expect(TokenType.String).value
+            text: textToken.value,
+            span: this.createSpan(start, textToken)
         };
     }
 

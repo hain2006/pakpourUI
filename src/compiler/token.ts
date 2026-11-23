@@ -1,4 +1,5 @@
 
+import type { SourceSpan,CharacterSpan } from "./source-location";
 export enum TokenType {
     Identifier,
     String,
@@ -65,4 +66,6 @@ export interface Token {
     value: string;
     line: number;
     column: number;
+    span: SourceSpan;
+    characterSpans?: CharacterSpan[];
 }
