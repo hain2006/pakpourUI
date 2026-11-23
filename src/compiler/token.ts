@@ -4,19 +4,58 @@ export enum TokenType {
     String,
     Number,
 
+    // Site structure
+    Site,
     Page,
-    State,
 
+    // SEO
+    Seo,
+    Title,
+    Description,
+    Canonical,
+    Index,
+
+    // Layout
+    Layout,
+    Vertical,
+    Horizontal,
+
+    // Elements
+    Heading,
+    Paragraph,
+    Text,
+    Action,
+
+    // Application logic
+    State,
+    When,
+    Navigate,
+    True,
+    False,
+
+    // Legacy elements
     Column,
     Row,
-    Heading,
-    Text,
     Button,
 
+    // Braces
     LeftBrace,
     RightBrace,
+
+    // Arithmetic
     Equals,
     Plus,
+    Minus,
+    Multiply,
+    Divide,
+
+    // Comparison
+    EqualEqual,
+    NotEquals,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
 
     EOF
 }

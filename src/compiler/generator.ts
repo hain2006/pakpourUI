@@ -1,5 +1,5 @@
 
-import {
+import type {
     ProgramNode,
     PageNode,
     StatementNode,
@@ -173,27 +173,36 @@ export class CodeGenerator {
         }
     }
 
-    private generateExpression(expression: ExpressionNode): string {
-        switch (expression.type) {
-            case "NumberLiteral":
-                return String(expression.value);
+   private generateExpression(expression: ExpressionNode): string {
+    switch (expression.type) {
+        case "NumberLiteral":
+            return String(expression.value);
 
-            case "StringLiteral":
-                return JSON.stringify(expression.value);
+        case "StringLiteral":
+            return JSON.stringify(expression.value);
 
-            case "Identifier":
-                if (!this.stateNames.has(expression.name)) {
-                    throw new Error(
-                        `Unknown state: ${expression.name}`
-                    );
-                }
+        case "BooleanLiteral":
+            return String(expression.value);
 
-                return `${expression.name}.value`;
+        case "Identifier":
+            if (!this.stateNames.has(expression.name)) {
+                throw new Error(
+                    `Unknown state: ${expression.name}`
+                );
+            }
 
-            case "BinaryExpression":
-                return `(${this.generateExpression(expression.left)} ${expression.operator} ${this.generateExpression(expression.right)})`;
-        }
+            return `${expression.name}.value`;
+
+        case "BinaryExpression":
+            return `(${this.generateExpression(expression.left)} ${expression.operator} ${this.generateExpression(expression.right)})`;
+
+        case "UnaryExpression":
+            return `(${expression.operator}${this.generateExpression(expression.argument)})`;
+
+       default:
+            throw new Error("Unsupported expression type");
     }
+}
 
     private generateTextExpression(text: string): string {
         const escaped = text

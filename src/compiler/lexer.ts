@@ -1,5 +1,6 @@
 
-import { Token, TokenType } from "./token";
+import type { Token } from "./token";
+import { TokenType } from "./token";
 
 export class Lexer {
     private position = 0;
@@ -13,7 +14,7 @@ export class Lexer {
     }
 
     private advance(): string {
-        const char = this.source[this.position++];
+        const char = this.source[this.position++] ?? "";
 
         if (char === "\n") {
             this.line++;
@@ -25,20 +26,30 @@ export class Lexer {
         return char;
     }
 
+    private createToken(
+        type: TokenType,
+        value: string,
+        line: number,
+        column: number
+    ): Token {
+        return { type, value, line, column };
+    }
+
     private skipWhitespace(): void {
-        while (/\s/.test(this.peek()) && this.peek() !== "") {
+        while (
+            this.peek() !== "" &&
+            /\s/.test(this.peek())
+        ) {
             this.advance();
         }
     }
 
     private skipComment(): void {
-        if (this.peek() === "/" && this.peek(1) === "/") {
-            while (
-                this.peek() !== "\n" &&
-                this.peek() !== ""
-            ) {
-                this.advance();
-            }
+        while (
+            this.peek() !== "" &&
+            this.peek() !== "\n"
+        ) {
+            this.advance();
         }
     }
 
@@ -53,21 +64,43 @@ export class Lexer {
         }
 
         const keywords: Record<string, TokenType> = {
+            site: TokenType.Site,
             page: TokenType.Page,
+
+            seo: TokenType.Seo,
+            title: TokenType.Title,
+            description: TokenType.Description,
+            canonical: TokenType.Canonical,
+            index: TokenType.Index,
+
+            layout: TokenType.Layout,
+            vertical: TokenType.Vertical,
+            horizontal: TokenType.Horizontal,
+
+            heading: TokenType.Heading,
+            paragraph: TokenType.Paragraph,
+            text: TokenType.Text,
+            action: TokenType.Action,
+
             state: TokenType.State,
+            when: TokenType.When,
+            navigate: TokenType.Navigate,
+
+            true: TokenType.True,
+            false: TokenType.False,
+
+            // Legacy keywords
             column: TokenType.Column,
             row: TokenType.Row,
-            heading: TokenType.Heading,
-            text: TokenType.Text,
             button: TokenType.Button
         };
 
-        return {
-            type: keywords[value] ?? TokenType.Identifier,
+        return this.createToken(
+            keywords[value] ?? TokenType.Identifier,
             value,
             line,
             column
-        };
+        );
     }
 
     private readNumber(): Token {
@@ -80,12 +113,12 @@ export class Lexer {
             value += this.advance();
         }
 
-        return {
-            type: TokenType.Number,
+        return this.createToken(
+            TokenType.Number,
             value,
             line,
             column
-        };
+        );
     }
 
     private readString(): Token {
@@ -96,9 +129,16 @@ export class Lexer {
 
         let value = "";
 
-        while (this.peek() !== '"' && this.peek() !== "") {
+        while (
+            this.peek() !== '"' &&
+            this.peek() !== ""
+        ) {
             if (this.peek() === "\\") {
                 this.advance();
+
+                if (this.peek() === "") {
+                    break;
+                }
 
                 const escaped = this.advance();
 
@@ -124,12 +164,65 @@ export class Lexer {
 
         this.advance();
 
-        return {
-            type: TokenType.String,
+        return this.createToken(
+            TokenType.String,
             value,
             line,
             column
+        );
+    }
+
+    private readOperator(): Token | null {
+        const line = this.line;
+        const column = this.column;
+
+        const operators: Record<string, TokenType> = {
+            ">=": TokenType.GreaterThanOrEqual,
+            "<=": TokenType.LessThanOrEqual,
+            "==": TokenType.EqualEqual,
+            "!=": TokenType.NotEquals,
+
+            "{": TokenType.LeftBrace,
+            "}": TokenType.RightBrace,
+
+            "=": TokenType.Equals,
+            "+": TokenType.Plus,
+            "-": TokenType.Minus,
+            "*": TokenType.Multiply,
+            "/": TokenType.Divide,
+
+            ">": TokenType.GreaterThan,
+            "<": TokenType.LessThan
         };
+
+        const twoCharacters = this.peek() + this.peek(1);
+
+        if (operators[twoCharacters] !== undefined) {
+            this.advance();
+            this.advance();
+
+            return this.createToken(
+                operators[twoCharacters],
+                twoCharacters,
+                line,
+                column
+            );
+        }
+
+        const oneCharacter = this.peek();
+
+        if (operators[oneCharacter] !== undefined) {
+            this.advance();
+
+            return this.createToken(
+                operators[oneCharacter],
+                oneCharacter,
+                line,
+                column
+            );
+        }
+
+        return null;
     }
 
     public tokenize(): Token[] {
@@ -167,38 +260,26 @@ export class Lexer {
                 continue;
             }
 
-            const line = this.line;
-            const column = this.column;
+            const operator = this.readOperator();
 
-            const symbols: Record<string, TokenType> = {
-                "{": TokenType.LeftBrace,
-                "}": TokenType.RightBrace,
-                "+": TokenType.Plus,
-                "=": TokenType.Equals
-            };
-
-            if (symbols[char] !== undefined) {
-                tokens.push({
-                    type: symbols[char],
-                    value: this.advance(),
-                    line,
-                    column
-                });
-
+            if (operator) {
+                tokens.push(operator);
                 continue;
             }
 
             throw new Error(
-                `Unexpected character '${char}' at ${line}:${column}`
+                `Unexpected character '${char}' at ${this.line}:${this.column}`
             );
         }
 
-        tokens.push({
-            type: TokenType.EOF,
-            value: "",
-            line: this.line,
-            column: this.column
-        });
+        tokens.push(
+            this.createToken(
+                TokenType.EOF,
+                "",
+                this.line,
+                this.column
+            )
+        );
 
         return tokens;
     }
