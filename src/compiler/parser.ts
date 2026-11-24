@@ -48,11 +48,11 @@ export class Parser {
 
     private createSpan(
         start: Token,
-        end: Token
+        end: Token | SourceSpan
     ): SourceSpan {
         return {
             start: start.span.start,
-            end: end.span.end
+            end: "span" in end ? end.span.end : end.end
         };
     }
 
@@ -321,7 +321,10 @@ export class Parser {
             type: "Heading",
             level,
             text: textToken.value,
-            span: this.createSpan(start, textToken)
+            span: this.createSpan(start, textToken),
+            ...(textToken.characterSpans && {
+                characterSpans: textToken.characterSpans
+            })
         };
     }
 
@@ -332,7 +335,10 @@ export class Parser {
         return {
             type: "Paragraph",
             text: textToken.value,
-            span: this.createSpan(start, textToken)
+            span: this.createSpan(start, textToken),
+            ...(textToken.characterSpans && {
+                characterSpans: textToken.characterSpans
+            })
         };
     }
 
@@ -343,7 +349,10 @@ export class Parser {
         return {
             type: "Text",
             text: textToken.value,
-            span: this.createSpan(start, textToken)
+            span: this.createSpan(start, textToken),
+            ...(textToken.characterSpans && {
+                characterSpans: textToken.characterSpans
+            })
         };
     }
 
@@ -423,16 +432,19 @@ export class Parser {
     // =====================================
 
     private parseState(): StateNode {
-        this.expect(TokenType.State);
-
-        const name = this.expect(TokenType.Identifier).value;
+        const startToken = this.expect(TokenType.State);
+        const nameToken = this.expect(TokenType.Identifier);
 
         this.expect(TokenType.Equals);
 
+        const value = this.parseExpression();
+
         return {
             type: "State",
-            name,
-            value: this.parseExpression()
+            name: nameToken.value,
+            nameSpan: nameToken.span,
+            value,
+            span: this.createSpan(startToken, value.span!)
         };
     }
 
@@ -475,7 +487,8 @@ export class Parser {
                 break;
             }
 
-            const operator = this.advance().value;
+            const operatorToken = this.advance();
+            const operator = operatorToken.value;
 
             const right = this.parseExpression(precedence + 1);
 
@@ -483,7 +496,11 @@ export class Parser {
                 type: "BinaryExpression",
                 operator,
                 left,
-                right
+                right,
+                span: {
+                    start: left.span!.start,
+                    end: right.span!.end
+                }
             };
         }
 
@@ -492,12 +509,17 @@ export class Parser {
 
     private parseUnary(): ExpressionNode {
         if (this.peek().type === TokenType.Minus) {
-            const operator = this.advance().value;
+            const operatorToken = this.advance();
+            const argument = this.parseUnary();
 
             return {
                 type: "UnaryExpression",
-                operator,
-                argument: this.parseUnary()
+                operator: operatorToken.value,
+                argument,
+                span: {
+                    start: operatorToken.span.start,
+                    end: argument.span!.end
+                }
             };
         }
 
@@ -511,31 +533,36 @@ export class Parser {
             case TokenType.Number:
                 return {
                     type: "NumberLiteral",
-                    value: Number(token.value)
+                    value: Number(token.value),
+                    span: token.span
                 };
 
             case TokenType.String:
                 return {
                     type: "StringLiteral",
-                    value: token.value
+                    value: token.value,
+                    span: token.span
                 };
 
             case TokenType.True:
                 return {
                     type: "BooleanLiteral",
-                    value: true
+                    value: true,
+                    span: token.span
                 };
 
             case TokenType.False:
                 return {
                     type: "BooleanLiteral",
-                    value: false
+                    value: false,
+                    span: token.span
                 };
 
             case TokenType.Identifier:
                 return {
                     type: "Identifier",
-                    name: token.value
+                    name: token.value,
+                    span: token.span
                 };
 
             default:
@@ -601,14 +628,17 @@ export class Parser {
     }
 
     private parseAssignment(): AssignmentNode {
-        const name = this.expect(TokenType.Identifier).value;
+        const nameToken = this.expect(TokenType.Identifier);
 
         this.expect(TokenType.Equals);
 
+        const value = this.parseExpression();
+
         return {
             type: "Assignment",
-            name,
-            value: this.parseExpression()
+            name: nameToken.value,
+            nameSpan: nameToken.span,
+            value
         };
     }
 

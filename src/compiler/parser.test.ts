@@ -132,7 +132,7 @@ describe("pakpourUI Parser", () => {
             child => child.type === "State"
         );
 
-        expect(state).toEqual({
+        expect(state).toMatchObject({
             type: "State",
             name: "count",
             value: {
@@ -140,6 +140,9 @@ describe("pakpourUI Parser", () => {
                 value: 0
             }
         });
+
+        expect(state?.value.span).toBeDefined();
+        expect(state?.value.span?.start.line).toBe(4);
     });
 
     it("should parse action with navigate command", () => {
@@ -226,7 +229,7 @@ describe("pakpourUI Parser", () => {
             throw new Error("Expected WhenNode");
         }
 
-        expect(condition.condition).toEqual({
+        expect(condition.condition).toMatchObject({
             type: "BinaryExpression",
             operator: ">=",
             left: {
@@ -238,6 +241,16 @@ describe("pakpourUI Parser", () => {
                 value: 10
             }
         });
+
+        expect(condition.condition.span).toBeDefined();
+
+        if (condition.condition.type === "BinaryExpression") {
+            expect(condition.condition.left.span).toBeDefined();
+            expect(condition.condition.right.span).toBeDefined();
+
+            expect(condition.condition.left.span?.start.column).toBe(30);
+            expect(condition.condition.right.span?.start.column).toBe(39);
+        }
 
         expect(condition.children[0]!.type).toBe("Text");
     });
@@ -271,7 +284,7 @@ describe("pakpourUI Parser", () => {
             throw new Error("Expected StateNode");
         }
 
-        expect(state.value).toEqual({
+        expect(state.value).toMatchObject({
             type: "BinaryExpression",
             operator: "+",
             left: {
@@ -291,6 +304,20 @@ describe("pakpourUI Parser", () => {
                 }
             }
         });
+
+        expect(state.value.span).toBeDefined();
+
+        if (state.value.type === "BinaryExpression") {
+            expect(state.value.left.span).toBeDefined();
+            expect(state.value.right.span).toBeDefined();
+
+            expect(state.value.left.span?.start.column).toBe(36);
+
+            if (state.value.right.type === "BinaryExpression") {
+                expect(state.value.right.left.span?.start.column).toBe(40);
+                expect(state.value.right.right.span?.start.column).toBe(44);
+            }
+        }
     });
 
 

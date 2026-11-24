@@ -2,7 +2,7 @@
 /* =========================================
    Program
 ========================================= */
-import type { SourceSpan } from "./source-location";
+import type { SourceSpan,CharacterSpan } from "./source-location";
 
 export type LocatedNode = {
     span?: SourceSpan;
@@ -92,16 +92,19 @@ export type HeadingNode = LocatedNode & {
     type: "Heading";
     level: number;
     text: string;
+    characterSpans?: CharacterSpan[];
 };
 
 export type ParagraphNode = LocatedNode & {
     type: "Paragraph";
     text: string;
+    characterSpans?: CharacterSpan[];
 };
 
 export type TextNode = LocatedNode & {
     type: "Text";
     text: string;
+    characterSpans?: CharacterSpan[];
 };
 
 export type ActionNode = LocatedNode & {
@@ -153,12 +156,14 @@ export type ElementNode = LocatedNode & {
 export type StateNode = LocatedNode & {
     type: "State";
     name: string;
+    nameSpan?: SourceSpan;
     value: ExpressionNode;
 };
 
 export type AssignmentNode = LocatedNode & {
     type: "Assignment";
     name: string;
+    nameSpan?: SourceSpan;
     value: ExpressionNode;
 };
 
