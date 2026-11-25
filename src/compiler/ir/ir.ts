@@ -232,6 +232,7 @@ export type IRUnaryExpression = IRNode & {
    Content Collections
 ========================================= */
 
+
 export type IRPageContent =
     | IRState
     | IRLayout
@@ -244,9 +245,12 @@ export type IRPageContent =
     | IRAssignment;
 
 export type IRLayoutContent =
+    | IRLayout
     | IRHeading
     | IRParagraph
     | IRTextNode
     | IRAction
     | IRCondition
-    | IRElement;
+    | IRElement
+    | IRAssignment;
+

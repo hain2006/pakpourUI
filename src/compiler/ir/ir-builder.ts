@@ -458,6 +458,7 @@ export class IRBuilder {
         }
     }
 
+
     private buildLegacyElement(
         element: ElementNode,
         symbols: IRSymbol[]
@@ -466,26 +467,80 @@ export class IRBuilder {
             statement => this.buildLegacyStatement(statement, symbols)
         );
 
+        let text: IRElement["text"];
+
+        if (element.text !== undefined) {
+            const segments: NonNullable<IRElement["text"]>["segments"] = [];
+            const bindings = this.semanticModel.getTextBindings(element);
+            const pattern = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
+
+            let lastIndex = 0;
+            let match: RegExpExecArray | null;
+
+            while ((match = pattern.exec(element.text)) !== null) {
+                const name = match[1];
+                const offset = match.index + 1;
+
+                if (match.index > lastIndex) {
+                    segments.push({
+                        type: "StaticText",
+                        value: element.text.slice(lastIndex, match.index)
+                    });
+                }
+
+                const binding = bindings.find(
+                    item => item.name === name && item.offset === offset
+                );
+
+                if (!binding) {
+                    throw new Error(
+                        `Missing semantic binding for text identifier: ${name}`
+                    );
+                }
+
+                segments.push({
+                    type: "DynamicText",
+                    expression: {
+                        id: `ir_text_identifier_${binding.symbol.id}_${offset}`,
+                        type: "IRIdentifier",
+                        name: binding.name,
+                        symbolId: binding.symbol.id,
+                        valueType: binding.symbol.valueType
+                    }
+                });
+
+                lastIndex = pattern.lastIndex;
+            }
+
+            if (lastIndex < element.text.length) {
+                segments.push({
+                    type: "StaticText",
+                    value: element.text.slice(lastIndex)
+                });
+            }
+
+            if (segments.length === 0) {
+                segments.push({
+                    type: "StaticText",
+                    value: element.text
+                });
+            }
+
+            text = { segments };
+        }
+
         return {
             id: `ir_element_${this.nextLegacyNodeId++}`,
             type: "IRElement",
             name: element.name,
-            ...(element.text !== undefined && {
-                text: {
-                    segments: [
-                        {
-                            type: "StaticText",
-                            value: element.text
-                        }
-                    ]
-                }
-            }),
+            ...(text !== undefined && { text }),
             children,
             ...(element.span && {
                 span: element.span
             })
         };
     }
+
 
 
 

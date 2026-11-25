@@ -353,4 +353,61 @@ describe("pakpourUI IR Builder", () => {
         expect(row.children).toHaveLength(1);
     });
 
+
+    it("should bind dynamic text in legacy elements", () => {
+        const ir = buildIR(`
+        page "Counter" {
+            state count = 10
+
+            column {
+                text "Current count: {count}"
+            }
+        }
+    `);
+
+        const page = getAt(ir.standalonePages, 0);
+
+        const column = getByType(
+            page.children,
+            "IRElement"
+        );
+
+        const textElement = getByType(
+            column.children,
+            "IRElement"
+        );
+
+        expect(textElement.name.toLowerCase()).toBe("text");
+        expect(textElement.text).toBeDefined();
+
+        const segments = textElement.text!.segments;
+
+        expect(segments).toHaveLength(2);
+
+        expect(getAt(segments, 0)).toEqual({
+            type: "StaticText",
+            value: "Current count: "
+        });
+
+        const dynamicSegment = getAt(segments, 1);
+
+        expect(dynamicSegment.type).toBe("DynamicText");
+
+        if (dynamicSegment.type !== "DynamicText") {
+            throw new Error("Expected DynamicText");
+        }
+
+        expect(dynamicSegment.expression.type).toBe("IRIdentifier");
+
+        if (dynamicSegment.expression.type !== "IRIdentifier") {
+            throw new Error("Expected IRIdentifier");
+        }
+
+        expect(dynamicSegment.expression.name).toBe("count");
+        expect(dynamicSegment.expression.symbolId).toBe(
+            getAt(page.scope.symbols, 0).id
+        );
+    });
+
+
 });

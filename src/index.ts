@@ -3,6 +3,7 @@ import { Lexer } from "./compiler/lexer";
 import { Parser } from "./compiler/parser";
 import { CodeGenerator } from "./compiler/generator";
 import { SemanticAnalyzer } from "./compiler/semantic";
+import { IRBuilder } from "./compiler/ir/ir-builder";
 
 import fs from "node:fs";
 
@@ -43,7 +44,17 @@ if (diagnostics.hasErrors) {
     process.exitCode = 1;
 } else {
 
-    // Step 4: Code Generation
+    // Step 4: Build Intermediate Representation
+    const irBuilder = new IRBuilder(
+        analyzer.getSemanticModel()
+    );
+
+    const ir = irBuilder.build(ast);
+
+    console.log("\nGenerated Intermediate Representation:\n");
+    console.log(JSON.stringify(ir, null, 2));
+
+    // Step 5: Code Generation
     const generator = new CodeGenerator();
     const javascript = generator.generate(ast);
 

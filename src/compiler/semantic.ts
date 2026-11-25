@@ -336,8 +336,12 @@ export class SemanticAnalyzer {
             }
 
             if (statement.type === "Element") {
-                if (statement.text) {
-                    this.analyzeText(statement.text);
+                if (statement.text !== undefined) {
+                    this.analyzeText(
+                        statement.text,
+                        undefined,
+                        statement
+                    );
                 }
 
                 // Nested elements share the current page scope.
