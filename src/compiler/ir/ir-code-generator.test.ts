@@ -14,11 +14,12 @@ describe("pakpourUI IR Code Generator", () => {
             id: "program_1",
             type: "IRProgram",
             sites: [],
-            standalonePages: []
+            standalonePages: [
+            ]
         });
 
         expect(output).toContain(
-            'import { signal, createElement, bindText } from "./runtime.js";'
+            'import { signal, createElement, bindText, createScope, createPageScope } from "./runtime.js";'
         );
 
         expect(output).toContain("export function render(root, pageId)");
@@ -224,6 +225,93 @@ describe("pakpourUI IR Code Generator", () => {
         expect(output).toContain("const state0 = signal(10);");
         expect(output).toContain(
             "const state1 = signal((state0.value + 5));"
+        );
+    });
+
+    it("should generate reactive conditional rendering based on state", () => {
+        const program: IRProgram = {
+            id: "program_reactive_condition",
+            type: "IRProgram",
+            sites: [],
+            standalonePages: [
+                {
+                    id: "page_reactive_condition",
+                    type: "IRPage",
+                    name: "Home",
+                    scope: {
+                        id: "scope_reactive_condition",
+                        symbols: []
+                    },
+                    children: [
+                        {
+                            id: "state_enabled",
+                            type: "IRState",
+                            symbolId: "symbol_enabled",
+                            name: "enabled",
+                            valueType: "boolean",
+                            declarationOrder: 0,
+                            initialValue: {
+                                id: "boolean_false",
+                                type: "IRBooleanLiteral",
+                                value: false
+                            }
+                        },
+                        {
+                            id: "condition_enabled",
+                            type: "IRCondition",
+                            expression: {
+                                id: "identifier_enabled",
+                                type: "IRIdentifier",
+                                name: "enabled",
+                                symbolId: "symbol_enabled",
+                                valueType: "boolean"
+                            },
+                            children: [
+                                {
+                                    id: "heading_visible",
+                                    type: "IRHeading",
+                                    level: 1,
+                                    content: {
+                                        segments: [
+                                            {
+                                                type: "StaticText",
+                                                value: "Visible Content"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const generator = new IRCodeGenerator();
+        const output = generator.generate(program);
+
+        expect(output).toContain(
+            "const state0 = signal(false);"
+        );
+
+        expect(output).toContain(
+            "createScope(root, scopeElement0 => {"
+        );
+
+        expect(output).toContain(
+            "if (state0.value) {"
+        );
+
+        expect(output).toContain(
+            'createElement("h1")'
+        );
+
+        expect(output).toContain(
+            "scopeElement0.appendChild"
+        );
+
+        expect(output).toContain(
+            "Visible Content"
         );
     });
 
@@ -436,11 +524,22 @@ describe("pakpourUI IR Code Generator", () => {
             id: "program_clear",
             type: "IRProgram",
             sites: [],
-            standalonePages: []
+            standalonePages: [
+                {
+                    id: "page_home",
+                    type: "IRPage",
+                    name: "Home",
+                    scope: {
+                        id: "scope_home",
+                        symbols: []
+                    },
+                    children: []
+                }
+            ]
         });
 
         expect(output).toContain(
-            "root.replaceChildren();"
+            "pageScope.render(() => {"
         );
     });
 
@@ -905,7 +1004,7 @@ describe("pakpourUI IR Code Generator", () => {
         );
     });
 
-    it("should generate conditional rendering", () => {
+    it("should generate reactive conditional rendering", () => {
         const program: IRProgram = {
             id: "program",
             type: "IRProgram",
@@ -952,8 +1051,10 @@ describe("pakpourUI IR Code Generator", () => {
         const generator = new IRCodeGenerator();
         const output = generator.generate(program);
 
+        expect(output).toContain("createScope(root, scopeElement");
         expect(output).toContain("if (true) {");
         expect(output).toContain('createElement("h1")');
+        expect(output).toContain("scopeElement0.appendChild");
         expect(output).toContain("Hello");
     });
 
@@ -1056,6 +1157,92 @@ describe("pakpourUI IR Code Generator", () => {
         expect(output).toContain('addEventListener("click"');
         expect(output).toContain("state0.value = 1;");
     });
+
+
+    it("should create a page scope for each root element", () => {
+        const generator = new IRCodeGenerator();
+
+        const output = generator.generate({
+            id: "program_page_scope",
+            type: "IRProgram",
+            sites: [],
+            standalonePages: []
+        });
+
+        expect(output).toContain(
+            "const pageScopes = new WeakMap();"
+        );
+
+        expect(output).toContain(
+            "pageScopes.get(root)"
+        );
+
+        expect(output).toContain(
+            "createPageScope(root)"
+        );
+
+        expect(output).toContain(
+            "pageScopes.set(root, pageScope)"
+        );
+    });
+
+    it("should render pages inside their page scope", () => {
+        const generator = new IRCodeGenerator();
+
+        const output = generator.generate({
+            id: "program_scoped_render",
+            type: "IRProgram",
+            sites: [],
+            standalonePages: [
+                {
+                    id: "page_home",
+                    type: "IRPage",
+                    name: "Home",
+                    scope: {
+                        id: "scope_home",
+                        symbols: []
+                    },
+                    children: []
+                }
+            ]
+        });
+
+        expect(output).toContain(
+            "pageScope.render(() => {"
+        );
+
+        expect(output).toContain(
+            "renderPage0(root);"
+        );
+    });
+
+    it("should generate disposePage to clean up page scope", () => {
+        const generator = new IRCodeGenerator();
+
+        const output = generator.generate({
+            id: "program_dispose_page",
+            type: "IRProgram",
+            sites: [],
+            standalonePages: []
+        });
+
+        expect(output).toContain(
+            "export function disposePage(root)"
+        );
+
+        expect(output).toContain(
+            "pageScopes.get(root)"
+        );
+
+        expect(output).toContain(
+            "pageScope.dispose()"
+        );
+
+        expect(output).toContain(
+            "pageScopes.delete(root)"
+        );
+    });
+
 
 
 

@@ -27,9 +27,11 @@ export class IRCodeGenerator {
         this.stateCounter = 0;
         this.elementCounter = 0;
 
-        this.emit(
-            `import { signal, createElement, bindText } from "./runtime.js";`
+        this.lines.push(
+            'import { signal, createElement, bindText, createScope, createPageScope } from "./runtime.js";'
         );
+        this.lines.push("");
+        this.lines.push("const pageScopes = new WeakMap();");
 
         this.emit("");
 
@@ -46,13 +48,19 @@ export class IRCodeGenerator {
 
         // Generate page selection entry point.
         this.emit("export function render(root, pageId) {");
-        this.emit("  root.replaceChildren();");
+        this.lines.push("  let pageScope = pageScopes.get(root);");
+        this.lines.push("  if (!pageScope) {");
+        this.lines.push("    pageScope = createPageScope(root);");
+        this.lines.push("    pageScopes.set(root, pageScope);");
+        this.lines.push("  }");
 
         this.emit("  switch (pageId) {");
 
         pages.forEach((page, index) => {
             this.emit(`    case ${JSON.stringify(page.id)}:`);
-            this.emit(`      renderPage${index}(root);`);
+            this.lines.push("      pageScope.render(() => {");
+            this.lines.push(`        renderPage${index}(root);`);
+            this.lines.push("      });");
             this.emit("      break;");
         });
 
@@ -60,6 +68,15 @@ export class IRCodeGenerator {
         this.emit('      throw new Error(`Unknown page: ${pageId}`);');
         this.emit("  }");
 
+        this.emit("}");
+
+        this.emit("");
+
+        this.emit("export function disposePage(root) {");
+        this.emit("  const pageScope = pageScopes.get(root);");
+        this.emit("  if (!pageScope) return;");
+        this.emit("  pageScope.dispose();");
+        this.emit("  pageScopes.delete(root);");
         this.emit("}");
 
         return this.lines.join("\n");
@@ -226,14 +243,23 @@ export class IRCodeGenerator {
                         child.expression
                     );
 
-                    this.emit(`  if (${condition}) {`);
+                    const scopeId = this.elementCounter++;
+                    const scopeName = `scope${scopeId}`;
+                    const scopeElement = `scopeElement${scopeId}`;
+
+                    this.emit(
+                        `  const ${scopeName} = createScope(${parent}, ${scopeElement} => {`
+                    );
+
+                    this.emit(`    if (${condition}) {`);
 
                     this.generateChildren(
                         child.children,
-                        parent
+                        scopeElement
                     );
 
-                    this.emit("  }");
+                    this.emit("    }");
+                    this.emit("  });");
 
                     break;
                 }
