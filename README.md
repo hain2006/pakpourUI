@@ -4,9 +4,9 @@
 
 pakpourUI is an experimental, independent UI programming language and compiler built with TypeScript.
 
-The project explores a new approach to building web interfaces through a custom, readable programming language. Instead of writing HTML directly, developers will be able to describe websites and web applications using `.pui` source files and compile them into optimized JavaScript and HTML.
+The project explores a new approach to building web interfaces through a custom, readable programming language. Developers describe websites and web applications using `.pui` source files, which are processed through a dedicated compiler architecture.
 
-pakpourUI is being designed with its own syntax, compiler architecture, semantic analysis, intermediate representation, and reactive runtime.
+pakpourUI is being designed with its own syntax, lexer, parser, semantic analysis, intermediate representation, JavaScript code generator, and reactive runtime.
 
 The long-term vision is to build a complete UI development ecosystem rather than another wrapper around an existing JavaScript framework.
 
@@ -26,6 +26,8 @@ Key principles:
 - **No Virtual DOM:** Explore direct DOM updates through reactive dependencies.
 - **Unified Development:** Use one language for websites and web applications.
 
+These principles guide the architecture; some are still roadmap goals rather than completed features.
+
 ## Current Features
 
 ### Language and Compiler
@@ -37,7 +39,7 @@ Key principles:
 - State declarations
 - Variable assignments
 - Arithmetic and comparison expressions
-- Conditional rendering with `when`
+- Conditional declarations using `when`
 - Actions and navigation declarations
 - Source location tracking
 - Character-level source position tracking
@@ -57,7 +59,7 @@ Key principles:
 
 ### Intermediate Representation (IR)
 
-A dedicated Intermediate Representation has been introduced to provide a common model for future compiler backends.
+A dedicated Intermediate Representation provides a common model for future compiler backends.
 
 Current IR capabilities include:
 
@@ -72,18 +74,48 @@ Current IR capabilities include:
 - Expression representation
 - Semantic symbol references
 
-The IR Builder currently converts the analyzed AST into this intermediate model.
+The IR Builder converts the analyzed AST into this intermediate model.
 
-**Note:** IR generation is implemented and tested, but integration into the main build pipeline is still planned.
+The IR Code Generator generates JavaScript modules from IR programs. It currently supports page rendering functions, state declarations, layouts, headings, paragraphs, text bindings, elements, actions, navigation, assignments, and conditional code generation.
 
-### Runtime and Code Generation
+**Current limitation:** IR generation is implemented and tested, but integration into the main build pipeline is still planned. Conditional code generation currently evaluates conditions during rendering; fully reactive conditional rendering is a future development task.
 
-- JavaScript code generation
-- Initial signal-based reactive runtime
-- Reactive text binding
+### JavaScript Code Generation
+
+- JavaScript module generation
+- Page-specific rendering functions
+- Page selection by page ID
+- State variable generation
+- Expression generation
 - DOM element creation
+- Text binding through the runtime
 - Event handling
+- Navigation actions
+- State assignments inside actions
 - Direct DOM updates without a Virtual DOM
+
+The existing AST-based generator and the newer IR-based generator are separate parts of the current development architecture.
+
+### Reactive Runtime
+
+pakpourUI includes an experimental signal-based reactive runtime.
+
+Current capabilities:
+
+- Reactive `signal()` values
+- Reactive `effect()` execution
+- Automatic dependency tracking
+- Dynamic dependency updates
+- Dependency cleanup
+- Effect disposal through a stop function
+- Nested effect support
+- Effect stack management
+- Prevention of direct recursive execution of the same effect
+- Error handling and effect stack restoration
+- Dependency tracking after an effect error
+- Reactive text binding through `bindText()`
+
+The runtime is an early foundation for reactive UI rendering. More advanced lifecycle management, reactive conditional rendering, and rendering integration remain under development.
 
 ---
 
@@ -146,7 +178,7 @@ site "pakpourUI Demo" {
 }
 ```
 
-These examples represent the intended language direction and current supported syntax.
+These examples illustrate the language direction and syntax supported by the current compiler architecture. Not every example is yet integrated into a complete production rendering pipeline.
 
 ---
 
@@ -155,47 +187,50 @@ These examples represent the intended language direction and current supported s
 pakpourUI follows a structured compiler architecture:
 
 ```text
-             .pui Source
-                  |
-                  v
-                Lexer
-                  |
-                  v
-                Parser
-                  |
-                  v
-                 AST
-                  |
-                  v
-          Semantic Analyzer
-                  |
-                  v
-            Semantic Model
-                  |
-                  v
-        Intermediate Representation
-                  |
-          +-------+-------+
-          |       |       |
-          v       v       v
-         HTML    JavaScript  SEO
-       Renderer  Generator  Engine
-          |       |       |
-          +-------+-------+
-                  |
-                  v
-             Web Output
+              .pui Source
+                   |
+                   v
+                 Lexer
+                   |
+                   v
+                 Parser
+                   |
+                   v
+                  AST
+                   |
+                   v
+           Semantic Analyzer
+                   |
+                   v
+             Semantic Model
+                   |
+                   v
+       Intermediate Representation
+                   |
+          +--------+--------+
+          |                 |
+          v                 v
+     IR Builder       IR Code Generator
+                            |
+                            v
+                    JavaScript Output
+                            |
+                            v
+                     Reactive Runtime
+                            |
+                            v
+                      DOM Updates
 ```
 
 The Intermediate Representation is intended to serve as the shared foundation for multiple compiler backends.
 
-This architecture allows the language and its compiler to evolve independently from the rendering strategy.
+Planned future backends and rendering capabilities include HTML generation, SEO output, and different rendering strategies.
 
 ---
 
 ## Technology Stack
 
-- **TypeScript** – Compiler and language implementation
+- **TypeScript** – Compiler, language implementation, and runtime
 - **JavaScript** – Generated application code
 - **Node.js** – Development and build environment
 - **Vitest** – Automated testing
@@ -204,6 +239,8 @@ This architecture allows the language and its compiler to evolve independently f
 ---
 
 ## Project Structure
+
+The following is a high-level overview of the main source files:
 
 ```text
 pakpourUI/
@@ -217,14 +254,15 @@ pakpourUI/
 │   │   ├── generator.ts
 │   │   ├── diagnostics.ts
 │   │   ├── semantic.ts
-│   │   ├── semantic-model.ts
-│   │   │
 │   │   └── ir/
 │   │       ├── ir.ts
 │   │       ├── ir-builder.ts
-│   │       └── ir-builder.test.ts
+│   │       ├── ir-builder.test.ts
+│   │       ├── ir-code-generator.ts
+│   │       └── ir-code-generator.test.ts
 │   │
 │   ├── runtime.ts
+│   ├── runtime.test.ts
 │   └── index.ts
 │
 ├── dist/
@@ -265,13 +303,13 @@ npx tsc --noEmit
 npm run build
 ```
 
-The build command currently runs the existing compiler and generates JavaScript output in the `dist` directory.
+The build command currently runs the existing compiler and TypeScript runtime build configuration. Full integration of the IR-based compiler pipeline is still planned.
 
 ---
 
 ## Testing Status
 
-The compiler currently has automated tests covering its core components.
+The current automated test suite covers the lexer, parser, semantic analyzer, diagnostics, IR builder, IR code generator, and reactive runtime.
 
 | Component | Tests |
 |---|---:|
@@ -279,12 +317,18 @@ The compiler currently has automated tests covering its core components.
 | Parser | 7 |
 | Semantic Analyzer | 18 |
 | Diagnostics | 3 |
-| IR Builder | 9 |
-| **Total** | **43** |
+| IR Builder | 10 |
+| IR Code Generator | 21 |
+| Reactive Runtime | 8 |
+| **Total** | **73** |
 
-All 43 tests are passing in the current development version.
+**Latest verified status:**
 
-TypeScript validation and the existing build command have also completed successfully.
+- 73 tests passed
+- 7 test files passed
+- TypeScript validation completed without errors
+
+These results reflect the current development state and may change as new features and tests are added.
 
 ---
 
@@ -295,11 +339,11 @@ pakpourUI is being developed incrementally.
 | Version | Focus | Status |
 |---|---|---|
 | v0.1 | Initial compiler prototype | Completed |
-| v0.2 | Language foundation, semantic analysis and IR | In progress |
+| v0.2 | Language foundation, semantic analysis, IR, and runtime foundation | In progress |
 | v0.3 | HTML Renderer and SEO Engine | Planned |
 | v0.4 | Reactive rendering and hydration | Planned |
 | v0.5 | Components and routing | Planned |
-| v1.0 | Stable language, compiler and development tools | Planned |
+| v1.0 | Stable language, compiler, and development tools | Planned |
 
 ### Future Development
 
@@ -311,6 +355,7 @@ Planned capabilities include:
 - Static site generation (SSG)
 - Client-side rendering (CSR)
 - Hybrid rendering
+- Fully reactive conditional rendering
 - Component system
 - Routing
 - CSS generation
@@ -328,9 +373,9 @@ These are roadmap goals, not claims about currently completed functionality.
 
 **Early Development – Experimental Compiler**
 
-pakpourUI is actively evolving. Its language syntax, compiler architecture and APIs may change during development.
+pakpourUI is actively evolving. Its language syntax, compiler architecture, and APIs may change during development.
 
-The current focus is strengthening the language foundation, semantic model and Intermediate Representation before moving toward the HTML rendering engine.
+The current focus is strengthening the language foundation, semantic model, Intermediate Representation, and reactive runtime before moving toward the HTML rendering engine and full compiler integration.
 
 ---
 
@@ -338,7 +383,7 @@ The current focus is strengthening the language foundation, semantic model and I
 
 Created and developed by **Hamidreza Pakpour**.
 
-GitHub: https://github.com/hain2006/pakpourUI
+GitHub: [https://github.com/hain2006/pakpourUI](https://github.com/hain2006/pakpourUI)
 
 ---
 

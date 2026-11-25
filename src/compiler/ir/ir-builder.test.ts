@@ -209,7 +209,10 @@ describe("pakpourUI IR Builder", () => {
         const navigate = getAt(action.commands, 0);
 
         expect(navigate.type).toBe("IRNavigate");
-        expect(navigate.path).toBe("/scaffolders");
+
+        if (navigate.type === "IRNavigate") {
+            expect(navigate.path).toBe("/scaffolders");
+        }
     });
 
     it("should build SEO metadata", () => {

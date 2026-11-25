@@ -375,6 +375,28 @@ export class IRCodeGenerator {
                         `    window.location.href = ${JSON.stringify(command.path)};`
                     );
                     break;
+
+                case "IRAssignment": {
+                    const variableName = this.stateVariables.get(command.symbolId);
+
+                    if (!variableName) {
+                        throw new Error(
+                            `Unknown state symbol: ${command.symbolId}`
+                        );
+                    }
+
+                    const value = this.generateExpression(command.value);
+
+                    this.emit(`    ${variableName}.value = ${value};`);
+                    break;
+                }
+
+                default: {
+                    const exhaustiveCheck: never = command;
+                    throw new Error(
+                        `Unsupported action command: ${exhaustiveCheck}`
+                    );
+                }
             }
         }
 

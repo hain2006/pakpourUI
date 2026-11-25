@@ -156,7 +156,9 @@ export type IRNavigate = IRNode & {
     path: string;
 };
 
-export type IRActionCommand = IRNavigate;
+export type IRActionCommand =
+    | IRNavigate
+    | IRAssignment;
 
 /* =========================================
    Conditional Rendering

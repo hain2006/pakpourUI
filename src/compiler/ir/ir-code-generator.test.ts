@@ -998,6 +998,65 @@ describe("pakpourUI IR Code Generator", () => {
         expect(output).toContain('window.location.href = "/about"');
     });
 
+    it("should generate state assignments inside actions", () => {
+        const program: IRProgram = {
+            id: "program",
+            type: "IRProgram",
+            sites: [],
+            standalonePages: [
+                {
+                    id: "page",
+                    type: "IRPage",
+                    name: "Home",
+                    scope: {
+                        id: "scope",
+                        symbols: []
+                    },
+                    children: [
+                        {
+                            id: "state",
+                            type: "IRState",
+                            symbolId: "count-symbol",
+                            name: "count",
+                            valueType: "number",
+                            declarationOrder: 0,
+                            initialValue: {
+                                id: "initial",
+                                type: "IRNumberLiteral",
+                                value: 0
+                            }
+                        },
+                        {
+                            id: "action",
+                            type: "IRAction",
+                            label: "Increment",
+                            commands: [
+                                {
+                                    id: "assignment",
+                                    type: "IRAssignment",
+                                    symbolId: "count-symbol",
+                                    name: "count",
+                                    value: {
+                                        id: "value",
+                                        type: "IRNumberLiteral",
+                                        value: 1
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const generator = new IRCodeGenerator();
+        const output = generator.generate(program);
+
+        expect(output).toContain('textContent = "Increment"');
+        expect(output).toContain('addEventListener("click"');
+        expect(output).toContain("state0.value = 1;");
+    });
+
 
 
 
