@@ -1934,4 +1934,367 @@ describe("HTMLRenderer", () => {
         ).toThrow();
     });
 
+    it("should render Open Graph metadata", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        openGraph: {
+                            title: "Darbastan",
+                            description: "Scaffolding platform",
+                            type: "website",
+                            url: "https://example.com",
+                            image: "https://example.com/image.jpg",
+                            siteName: "Darbastan",
+                            locale: "en_US"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain('property="og:title" content="Darbastan"');
+        expect(html).toContain('property="og:description" content="Scaffolding platform"');
+        expect(html).toContain('property="og:type" content="website"');
+        expect(html).toContain('property="og:url" content="https://example.com"');
+        expect(html).toContain('property="og:image" content="https://example.com/image.jpg"');
+        expect(html).toContain('property="og:site_name" content="Darbastan"');
+        expect(html).toContain('property="og:locale" content="en_US"');
+    });
+
+    it("should escape Open Graph metadata values", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        openGraph: {
+                            title: 'Test "Title" <Page>',
+                            description: "A & B"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain(
+            'content="Test &quot;Title&quot; &lt;Page&gt;"'
+        );
+
+        expect(html).toContain('content="A &amp; B"');
+    });
+
+    it("should omit empty Open Graph metadata fields", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        openGraph: {
+                            title: "",
+                            description: undefined,
+                            type: "website"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain('property="og:type" content="website"');
+        expect(html).not.toContain('property="og:title"');
+        expect(html).not.toContain('property="og:description"');
+    });
+
+    it("should render Twitter Card metadata", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        twitter: {
+                            card: "summary_large_image",
+                            title: "Darbastan",
+                            description: "Scaffolding platform",
+                            image: "https://example.com/image.jpg",
+                            site: "@darbastan",
+                            creator: "@pakpour"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain('name="twitter:card" content="summary_large_image"');
+        expect(html).toContain('name="twitter:title" content="Darbastan"');
+        expect(html).toContain('name="twitter:description" content="Scaffolding platform"');
+        expect(html).toContain('name="twitter:image" content="https://example.com/image.jpg"');
+        expect(html).toContain('name="twitter:site" content="@darbastan"');
+        expect(html).toContain('name="twitter:creator" content="@pakpour"');
+    });
+
+    it("should escape Twitter Card metadata values", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        twitter: {
+                            title: 'Test "Title" <Page>',
+                            description: "A & B"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain(
+            'content="Test &quot;Title&quot; &lt;Page&gt;"'
+        );
+
+        expect(html).toContain('content="A &amp; B"');
+    });
+
+    it("should omit empty Twitter Card metadata fields", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        twitter: {
+                            card: "summary",
+                            title: "",
+                            description: undefined
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain('name="twitter:card" content="summary"');
+        expect(html).not.toContain('name="twitter:title"');
+        expect(html).not.toContain('name="twitter:description"');
+    });
+    it("should render favicon metadata", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        favicon: "/favicon.ico"
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        expect(result[0]!.html).toContain(
+            '<link rel="icon" href="/favicon.ico">'
+        );
+    });
+
+    it("should render theme color metadata", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        themeColor: "#212529"
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        expect(result[0]!.html).toContain(
+            '<meta name="theme-color" content="#212529">'
+        );
+    });
+
+    it("should escape favicon and theme color values", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        favicon: '/icon"><script>alert(1)</script>',
+                        themeColor: '" onload="alert(1)'
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain(
+            '<link rel="icon" href="/icon&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">'
+        );
+
+        expect(html).toContain(
+            '<meta name="theme-color" content="&quot; onload=&quot;alert(1)">'
+        );
+    });
+    it("should render JSON-LD structured data", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        structuredData: {
+                            "@context": "https://schema.org",
+                            "@type": "WebSite",
+                            name: "pakpourUI"
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        expect(result[0]!.html).toContain(
+            '<script type="application/ld+json">'
+        );
+
+        expect(result[0]!.html).toContain(
+            '"@type":"WebSite"'
+        );
+
+        expect(result[0]!.html).toContain(
+            '"name":"pakpourUI"'
+        );
+    });
+
+    it("should render multiple JSON-LD structured data objects", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        structuredData: [
+                            {
+                                "@type": "WebSite",
+                                name: "pakpourUI"
+                            },
+                            {
+                                "@type": "Organization",
+                                name: "pakpourUI"
+                            }
+                        ]
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(
+            html.match(/<script type="application\/ld\+json">/g)
+        ).toHaveLength(2);
+
+        expect(html).toContain('"@type":"WebSite"');
+        expect(html).toContain('"@type":"Organization"');
+    });
+
+    it("should escape dangerous characters in JSON-LD data", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        structuredData: {
+                            "@type": "WebSite",
+                            name: '</script><script>alert("XSS")</script>'
+                        }
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        const html = result[0]!.html;
+
+        expect(html).toContain("\\u003c/script\\u003e");
+        expect(html).toContain("\\u003cscript\\u003e");
+        expect(html).not.toContain('</script><script>alert');
+    });
+
+    it("should not render JSON-LD when structured data is empty", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    seo: {
+                        structuredData: []
+                    },
+                    children: []
+                }
+            ]
+        } as unknown as IRProgram);
+
+        expect(result[0]!.html).not.toContain(
+            'application/ld+json'
+        );
+    });
+
+
+
 });

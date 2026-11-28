@@ -65,12 +65,44 @@ export type IRPage = IRNode & {
    SEO
 ========================================= */
 
+export type IROpenGraph = {
+    title?: string;
+    description?: string;
+    type?: string;
+    url?: string;
+    image?: string;
+    siteName?: string;
+    locale?: string;
+};
+
+export type IRTwitterCard = {
+    card?: "summary" | "summary_large_image";
+    title?: string;
+    description?: string;
+    image?: string;
+    site?: string;
+    creator?: string;
+};
+export type IRStructuredData = Record<string, unknown>;
 export type IRSeo = IRNode & {
     type: "IRSeo";
+
+    // Basic SEO
     title?: string;
     description?: string;
     canonical?: string;
     index?: boolean;
+
+    // Social metadata
+    openGraph?: IROpenGraph;
+    twitter?: IRTwitterCard;
+
+    // Browser metadata
+    favicon?: string;
+    themeColor?: string;
+
+    // Structured Data (JSON-LD)
+    structuredData?: IRStructuredData | IRStructuredData[];
 };
 
 /* =========================================

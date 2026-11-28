@@ -101,6 +101,7 @@ export class HTMLRenderer {
         ].join("\n");
     }
 
+
     private renderHead(page: IRPage): string {
         const parts: string[] = [
             '<meta charset="UTF-8">',
@@ -108,26 +109,109 @@ export class HTMLRenderer {
             `<title>${this.escapeHTML(page.seo?.title ?? page.name)}</title>`
         ];
 
-        if (page.seo?.description) {
+        const seo = page.seo;
+
+        // Basic SEO
+        if (seo?.description) {
             parts.push(
-                `<meta name="description" content="${this.escapeHTML(page.seo.description)}">`
+                `<meta name="description" content="${this.escapeHTML(seo.description)}">`
             );
         }
 
-        if (page.seo?.canonical) {
+        if (seo?.canonical) {
             parts.push(
-                `<link rel="canonical" href="${this.escapeHTML(page.seo.canonical)}">`
+                `<link rel="canonical" href="${this.escapeHTML(seo.canonical)}">`
             );
         }
 
-        if (page.seo?.index === false) {
+        if (seo?.index === false) {
             parts.push(
                 '<meta name="robots" content="noindex">'
             );
         }
 
+        // Open Graph
+        const og = seo?.openGraph;
+
+        if (og) {
+            const openGraphMetadata: Array<[string, string | undefined]> = [
+                ["og:title", og.title],
+                ["og:description", og.description],
+                ["og:type", og.type],
+                ["og:url", og.url],
+                ["og:image", og.image],
+                ["og:site_name", og.siteName],
+                ["og:locale", og.locale]
+            ];
+
+            for (const [property, content] of openGraphMetadata) {
+                if (content !== undefined && content !== "") {
+                    parts.push(
+                        `<meta property="${property}" content="${this.escapeHTML(content)}">`
+                    );
+                }
+            }
+        }
+
+
+        // Twitter Card
+        const twitter = seo?.twitter;
+
+        if (twitter) {
+            const twitterMetadata: Array<[string, string | undefined]> = [
+                ["twitter:card", twitter.card],
+                ["twitter:title", twitter.title],
+                ["twitter:description", twitter.description],
+                ["twitter:image", twitter.image],
+                ["twitter:site", twitter.site],
+                ["twitter:creator", twitter.creator]
+            ];
+
+            for (const [name, content] of twitterMetadata) {
+                if (content !== undefined && content !== "") {
+                    parts.push(
+                        `<meta name="${name}" content="${this.escapeHTML(content)}">`
+                    );
+                }
+            }
+        }
+        // Favicon
+        if (seo?.favicon) {
+            parts.push(
+                `<link rel="icon" href="${this.escapeHTML(seo.favicon)}">`
+            );
+        }
+
+        // Theme Color
+        if (seo?.themeColor) {
+            parts.push(
+                `<meta name="theme-color" content="${this.escapeHTML(seo.themeColor)}">`
+            );
+        }
+
+        // JSON-LD Structured Data
+        const structuredData = seo?.structuredData;
+
+        if (structuredData) {
+            const structuredDataItems = Array.isArray(structuredData)
+                ? structuredData
+                : [structuredData];
+
+            for (const item of structuredDataItems) {
+                const json = JSON.stringify(item)
+                    .replace(/</g, "\\u003c")
+                    .replace(/>/g, "\\u003e")
+                    .replace(/&/g, "\\u0026");
+
+                parts.push(
+                    `<script type="application/ld+json">${json}</script>`
+                );
+            }
+        }
+
         return parts.join("\n");
     }
+
     private renderBody(page: IRPage): string {
         return page.children
             .map(child => this.renderNode(child))
