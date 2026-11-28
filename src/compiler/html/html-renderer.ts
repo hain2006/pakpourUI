@@ -453,6 +453,15 @@ export class HTMLRenderer {
                     );
                 }
 
+                if (
+                    name === "srcset" &&
+                    !this.isSafeSrcset(String(resolvedValue))
+                ) {
+                    throw new Error(
+                        `Unsafe URL in HTML attribute '${attribute.name}': ${String(resolvedValue)}`
+                    );
+                }
+
                 if (booleanAttributes.has(name)) {
                     return resolvedValue === false ||
                         resolvedValue === "false" ||
@@ -496,8 +505,15 @@ export class HTMLRenderer {
         return /^[a-zA-Z_:][a-zA-Z0-9:._-]*$/.test(name);
     }
     private isSafeURL(value: string): boolean {
-        const normalizedValue = value
-            .trim()
+        const trimmedValue = value.trim();
+
+        // Reject empty values containing only control characters.
+        if (/[\u0000-\u001F\u007F-\u009F]/.test(trimmedValue)) {
+            return false;
+        }
+
+        // Normalize URL for protocol inspection.
+        const normalizedValue = trimmedValue
             .replace(/[\u0000-\u0020\u007f-\u009f]/g, "")
             .toLowerCase();
 
@@ -516,6 +532,182 @@ export class HTMLRenderer {
             return false;
         }
 
+        // Reject encoded protocol separators and suspicious schemes.
+        if (/^%[0-9a-f]{2}/i.test(normalizedValue)) {
+            return false;
+        }
+
+        // Detect explicit URL schemes.
+        const schemeMatch = normalizedValue.match(/^([a-z][a-z0-9+.-]*):/);
+
+        if (schemeMatch) {
+            const allowedProtocols = [
+                "http:",
+                "https:",
+                "mailto:",
+                "tel:",
+                "ftp:"
+            ];
+
+            if (!allowedProtocols.includes(`${schemeMatch[1]}:`)) {
+                return false;
+            }
+        }
+
         return true;
     }
+
+    private isSafeSrcset(value: string): boolean {
+        const candidates: Array<{
+            url: string;
+            descriptor?: string;
+        }> = [];
+
+        let index = 0;
+
+        const isWhitespace = (char: string): boolean =>
+            /\s/.test(char);
+
+        while (index < value.length) {
+            // Skip leading whitespace.
+            while (
+                index < value.length &&
+                isWhitespace(value[index]!)
+            ) {
+                index++;
+            }
+
+            if (index >= value.length) {
+                break;
+            }
+
+            // Empty candidates are not allowed.
+            if (value[index] === ",") {
+                return false;
+            }
+
+            // Read URL until whitespace.
+            const urlStart = index;
+
+            while (
+                index < value.length &&
+                !isWhitespace(value[index]!)
+            ) {
+                index++;
+            }
+
+            let urlToken = value.slice(urlStart, index);
+
+            // Trailing commas separate candidates.
+            let trailingCommas = 0;
+
+            while (urlToken.endsWith(",")) {
+                urlToken = urlToken.slice(0, -1);
+                trailingCommas++;
+            }
+
+            if (!urlToken || trailingCommas > 1) {
+                return false;
+            }
+
+            if (!this.isSafeURL(urlToken)) {
+                return false;
+            }
+
+            // A trailing comma means this candidate has no descriptor.
+            if (trailingCommas === 1) {
+                candidates.push({ url: urlToken });
+                continue;
+            }
+
+            // Read optional descriptor until the next comma.
+            while (
+                index < value.length &&
+                isWhitespace(value[index]!)
+            ) {
+                index++;
+            }
+
+            const descriptorStart = index;
+
+            while (
+                index < value.length &&
+                value[index] !== ","
+            ) {
+                index++;
+            }
+
+            const descriptorText = value
+                .slice(descriptorStart, index)
+                .trim();
+
+            const descriptors = descriptorText
+                ? descriptorText.split(/\s+/)
+                : [];
+
+            if (descriptors.length > 1) {
+                return false;
+            }
+
+            let descriptor: string | undefined;
+
+            if (descriptors.length === 1) {
+                descriptor = descriptors[0]!;
+
+                const validWidth = /^\d+w$/.test(descriptor);
+
+                const validDensity =
+                    /^(?:\d+(?:\.\d+)?|\.\d+)x$/.test(descriptor);
+
+                if (!validWidth && !validDensity) {
+                    return false;
+                }
+
+                if (
+                    validWidth &&
+                    Number.parseInt(descriptor, 10) <= 0
+                ) {
+                    return false;
+                }
+
+                if (
+                    validDensity &&
+                    Number.parseFloat(descriptor) <= 0
+                ) {
+                    return false;
+                }
+            }
+
+            candidates.push(
+                descriptor === undefined
+                    ? { url: urlToken }
+                    : { url: urlToken, descriptor }
+            );
+
+            // Consume candidate separator.
+            if (index < value.length && value[index] === ",") {
+                index++;
+            }
+        }
+
+        if (candidates.length === 0) {
+            return false;
+        }
+
+        // Do not mix width and density descriptors.
+        const hasWidth = candidates.some(
+            candidate => candidate.descriptor?.endsWith("w")
+        );
+
+        const hasDensity = candidates.some(
+            candidate => candidate.descriptor?.endsWith("x")
+        );
+
+        if (hasWidth && hasDensity) {
+            return false;
+        }
+
+        return true;
+    }
+
 }

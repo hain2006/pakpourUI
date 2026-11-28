@@ -1511,4 +1511,427 @@ describe("HTMLRenderer", () => {
             '<a href="https://example.com/about" src="/images/logo.png"></a>'
         );
     });
+    it("should allow relative URLs", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const urls = [
+            "/about",
+            "./image.png",
+            "../page",
+            "#section",
+            "?page=2"
+        ];
+
+        for (const url of urls) {
+            const result = renderer.render({
+                sites: [],
+                standalonePages: [
+                    {
+                        type: "IRPage",
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "a",
+                                attributes: [
+                                    {
+                                        name: "href",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: url
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            });
+
+            expect(result[0]!.html).toContain(`href="${url}"`);
+        }
+    });
+
+    it("should allow safe URL protocols", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const urls = [
+            "https://example.com",
+            "http://example.com",
+            "mailto:test@example.com",
+            "tel:+123456789",
+            "ftp://example.com"
+        ];
+
+        for (const url of urls) {
+            expect(() => renderer.render({
+                sites: [],
+                standalonePages: [
+                    {
+                        type: "IRPage",
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "a",
+                                attributes: [
+                                    {
+                                        name: "href",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: url
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            })).not.toThrow();
+        }
+    });
+
+    it("should reject unknown URL protocols", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "a",
+                            attributes: [
+                                {
+                                    name: "href",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "custom:payload"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        })).toThrow("Unsafe URL");
+    });
+
+    it("should reject encoded URL schemes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "a",
+                            attributes: [
+                                {
+                                    name: "href",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "%6Aavascript:alert(1)"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        })).toThrow("Unsafe URL");
+    });
+
+    it("should reject URL values containing control characters", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "a",
+                            attributes: [
+                                {
+                                    name: "href",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "java\nscript:alert(1)"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        })).toThrow("Unsafe URL");
+    });
+    it("should render valid srcset with width descriptors", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "img",
+                            attributes: [
+                                {
+                                    name: "srcset",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/small.jpg 480w, /large.jpg 1024w"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            'srcset="/small.jpg 480w, /large.jpg 1024w"'
+        );
+    });
+
+    it("should render valid srcset with density descriptors", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "img",
+                            attributes: [
+                                {
+                                    name: "srcset",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/image.png 1x, /image@2x.png 2x"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            'srcset="/image.png 1x, /image@2x.png 2x"'
+        );
+    });
+
+    it("should reject javascript URLs in srcset", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "img",
+                            attributes: [
+                                {
+                                    name: "srcset",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/safe.jpg 1x, javascript:alert(1) 2x"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        })).toThrow("Unsafe URL");
+    });
+
+    it("should reject invalid srcset descriptors", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "img",
+                            attributes: [
+                                {
+                                    name: "srcset",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/image.jpg invalid"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        })).toThrow("Unsafe URL");
+    });
+
+    it("should allow commas inside srcset URLs", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "img",
+                            attributes: [
+                                {
+                                    name: "srcset",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/image,a.jpg 1x, /image,b.jpg 2x"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        } as unknown as IRProgram);
+
+        expect(result[0]!.html).toContain(
+            'srcset="/image,a.jpg 1x, /image,b.jpg 2x"'
+        );
+    });
+
+    it("should reject mixed width and density descriptors", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() =>
+            renderer.render({
+                standalonePages: [
+                    {
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "img",
+                                attributes: [
+                                    {
+                                        name: "srcset",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: "/small.jpg 480w, /large.jpg 2x"
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            } as unknown as IRProgram)
+        ).toThrow();
+    });
+
+    it("should reject multiple descriptors for one srcset candidate", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() =>
+            renderer.render({
+                standalonePages: [
+                    {
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "img",
+                                attributes: [
+                                    {
+                                        name: "srcset",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: "/image.jpg 480w 2x"
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            } as unknown as IRProgram)
+        ).toThrow();
+    });
+
+    it("should reject empty srcset candidates", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() =>
+            renderer.render({
+                standalonePages: [
+                    {
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "img",
+                                attributes: [
+                                    {
+                                        name: "srcset",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: "/small.jpg 1x,, /large.jpg 2x"
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ],
+                        seo: undefined
+                    }
+                ]
+            } as unknown as IRProgram)
+        ).toThrow();
+    });
+
 });
