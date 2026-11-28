@@ -116,9 +116,25 @@ export type IRTextNode = IRNode & {
     content: IRText;
 };
 
+export type IRAttributeValue =
+    | {
+        type: "StaticAttributeValue";
+        value: string;
+    }
+    | {
+        type: "DynamicAttributeValue";
+        expression: IRExpression;
+    };
+
+export type IRAttribute = {
+    name: string;
+    value: IRAttributeValue;
+};
+
 export type IRElement = IRNode & {
     type: "IRElement";
     name: string;
+    attributes?: IRAttribute[];
     text?: IRText;
     children: IRPageContent[];
 };

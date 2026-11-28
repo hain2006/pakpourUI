@@ -1,0 +1,463 @@
+import type {
+    IRProgram,
+    IRPage,
+    IRText,
+    IRHeading,
+    IRParagraph,
+    IRLayout,
+    IRLayoutContent,
+    IRAction,
+    IRCondition,
+    IRElement,
+    IRExpression
+} from "../ir/ir";
+
+export type HTMLRenderResult = {
+    siteName?: string;
+    pageName: string;
+    html: string;
+};
+
+export class HTMLRenderer {
+    private stateValues = new Map<string, unknown>();
+    private readonly voidElements = new Set([
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr"
+    ]);
+    public render(program: IRProgram): HTMLRenderResult[] {
+        const results: HTMLRenderResult[] = [];
+
+        // صفحات مستقل
+        for (const page of program.standalonePages) {
+            results.push({
+                pageName: page.name,
+                html: this.renderPage(page)
+            });
+        }
+
+        // صفحات متعلق به سایت‌ها
+        for (const site of program.sites) {
+            for (const page of site.pages) {
+                results.push({
+                    siteName: site.name,
+                    pageName: page.name,
+                    html: this.renderPage(page)
+                });
+            }
+        }
+
+        return results;
+    }
+
+    private renderPage(page: IRPage): string {
+        this.stateValues.clear();
+
+        const states = page.children
+            .filter(child => child.type === "IRState")
+            .sort((a, b) => a.declarationOrder - b.declarationOrder);
+
+        for (const state of states) {
+            const value = this.evaluateExpression(state.initialValue);
+
+            this.stateValues.set(state.symbolId, value);
+        }
+        const head = this.renderHead(page);
+
+        const body = this.renderBody(page);
+
+        return [
+            "<!DOCTYPE html>",
+            '<html lang="en">',
+            "<head>",
+            head,
+            "</head>",
+            "<body>",
+            body,
+            "</body>",
+            "</html>"
+        ].join("\n");
+    }
+
+    private renderHead(page: IRPage): string {
+        const parts: string[] = [
+            '<meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            `<title>${this.escapeHTML(page.seo?.title ?? page.name)}</title>`
+        ];
+
+        if (page.seo?.description) {
+            parts.push(
+                `<meta name="description" content="${this.escapeHTML(page.seo.description)}">`
+            );
+        }
+
+        if (page.seo?.canonical) {
+            parts.push(
+                `<link rel="canonical" href="${this.escapeHTML(page.seo.canonical)}">`
+            );
+        }
+
+        if (page.seo?.index === false) {
+            parts.push(
+                '<meta name="robots" content="noindex">'
+            );
+        }
+
+        return parts.join("\n");
+    }
+    private renderBody(page: IRPage): string {
+        return page.children
+            .map(child => this.renderNode(child))
+            .filter(Boolean)
+            .join("\n");
+    }
+    private renderNode(
+        node: IRPage["children"][number]
+    ): string {
+        switch (node.type) {
+            case "IRState":
+            case "IRAssignment":
+                return "";
+
+            case "IRLayout":
+                return this.renderLayout(node);
+
+            case "IRHeading":
+                return this.renderHeading(node);
+
+            case "IRParagraph":
+                return this.renderParagraph(node);
+
+            case "IRText":
+                return this.renderText(node.content);
+
+            case "IRAction":
+                return this.renderAction(node);
+
+            case "IRCondition":
+                return this.renderCondition(node);
+
+            case "IRElement":
+                return this.renderElement(node);
+
+            default:
+                return "";
+        }
+    }
+
+    private escapeHTML(value: string): string {
+        return value
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+    private evaluateExpression(
+        expression: IRExpression
+    ): unknown {
+        switch (expression.type) {
+            case "IRNumberLiteral":
+            case "IRStringLiteral":
+            case "IRBooleanLiteral":
+                return expression.value;
+
+            case "IRIdentifier":
+                return this.stateValues.get(expression.symbolId);
+
+            case "IRUnaryExpression": {
+                const value = this.evaluateExpression(
+                    expression.argument
+                );
+
+                if (expression.operator === "-") {
+                    if (typeof value !== "number") {
+                        throw new Error(
+                            "Unary '-' requires a number."
+                        );
+                    }
+
+                    return -value;
+                }
+
+                throw new Error(
+                    `Unsupported unary operator: ${expression.operator}`
+                );
+            }
+
+            case "IRBinaryExpression": {
+                const left = this.evaluateExpression(expression.left);
+                const right = this.evaluateExpression(expression.right);
+
+                switch (expression.operator) {
+                    case "+":
+                        if (
+                            typeof left === "number" &&
+                            typeof right === "number"
+                        ) {
+                            return left + right;
+                        }
+
+                        if (
+                            typeof left === "string" &&
+                            typeof right === "string"
+                        ) {
+                            return left + right;
+                        }
+
+                        throw new Error(
+                            "Operator '+' requires two numbers or two strings."
+                        );
+
+                    case "-":
+                    case "*":
+                    case "/":
+                        if (
+                            typeof left !== "number" ||
+                            typeof right !== "number"
+                        ) {
+                            throw new Error(
+                                `Operator '${expression.operator}' requires two numbers.`
+                            );
+                        }
+
+                        switch (expression.operator) {
+                            case "-":
+                                return left - right;
+                            case "*":
+                                return left * right;
+                            case "/":
+                                return left / right;
+                        }
+                        break;
+
+                    case "==":
+                        return left === right;
+
+                    case "!=":
+                        return left !== right;
+
+                    case ">":
+                    case "<":
+                    case ">=":
+                    case "<=":
+                        if (
+                            typeof left !== "number" ||
+                            typeof right !== "number"
+                        ) {
+                            throw new Error(
+                                `Operator '${expression.operator}' requires two numbers.`
+                            );
+                        }
+
+                        switch (expression.operator) {
+                            case ">":
+                                return left > right;
+                            case "<":
+                                return left < right;
+                            case ">=":
+                                return left >= right;
+                            case "<=":
+                                return left <= right;
+                        }
+
+                        break;
+
+                    default:
+                        throw new Error(
+                            `Unsupported binary operator: ${expression.operator}`
+                        );
+                }
+            }
+        }
+    }
+    private renderText(text: IRText): string {
+        return text.segments
+            .map(segment => {
+                if (segment.type === "StaticText") {
+                    return this.escapeHTML(segment.value);
+                }
+
+                const value = this.evaluateExpression(
+                    segment.expression
+                );
+
+                return this.escapeHTML(
+                    value === null || value === undefined
+                        ? ""
+                        : String(value)
+                );
+            })
+            .join("");
+    }
+    private renderHeading(node: IRHeading): string {
+        const level = node.level;
+
+        return `<h${level}>${this.renderText(node.content)}</h${level}>`;
+    }
+
+    private renderParagraph(node: IRParagraph): string {
+        return `<p>${this.renderText(node.content)}</p>`;
+    }
+    private renderLayout(node: IRLayout): string {
+        const children = node.children
+            .map(child => this.renderLayoutNode(child))
+            .join("\n");
+
+        const direction =
+            node.direction === "horizontal" ? "row" : "column";
+
+        return [
+            '<div style="display: flex;',
+            ` flex-direction: ${direction};`,
+            '">',
+            children,
+            "</div>"
+        ].join("");
+    }
+    private renderLayoutNode(
+        node: IRLayoutContent
+    ): string {
+        switch (node.type) {
+            case "IRHeading":
+                return this.renderHeading(node);
+
+            case "IRParagraph":
+                return this.renderParagraph(node);
+
+            case "IRText":
+                return this.renderText(node.content);
+
+            case "IRAction":
+                return this.renderAction(node);
+
+            case "IRCondition":
+                return this.renderCondition(node);
+            case "IRElement":
+                return this.renderElement(node);
+            case "IRLayout":
+                return this.renderLayout(node);
+
+            default:
+                return "";
+        }
+    }
+
+    private renderAction(node: IRAction): string {
+        return `<button type="button">${this.escapeHTML(node.label)}</button>`;
+    }
+    private renderCondition(node: IRCondition): string {
+        const condition = this.evaluateExpression(node.expression);
+
+        if (!condition) {
+            return "";
+        }
+
+        return node.children
+            .map(child => this.renderLayoutNode(child))
+            .join("\n");
+    }
+    private renderElement(node: IRElement): string {
+        const tagName = node.name.toLowerCase();
+
+        if (!this.isValidTagName(tagName)) {
+            throw new Error(`Invalid HTML tag name: ${node.name}`);
+        }
+
+        const attributes = (node.attributes ?? [])
+            .map(attribute => {
+                const name = attribute.name.toLowerCase();
+
+                if (!this.isValidAttributeName(name)) {
+                    throw new Error(`Invalid HTML attribute name: ${attribute.name}`);
+                }
+
+                // Prevent inline JavaScript event handlers.
+                if (name.startsWith("on")) {
+                    throw new Error(`Unsafe HTML attribute: ${attribute.name}`);
+                }
+
+                const value = attribute.value;
+
+                if (value.type === "DynamicAttributeValue") {
+                    throw new Error(
+                        `Dynamic HTML attributes are not supported yet: ${attribute.name}`
+                    );
+                }
+
+                const booleanAttributes = new Set([
+                    "allowfullscreen",
+                    "async",
+                    "autofocus",
+                    "autoplay",
+                    "checked",
+                    "controls",
+                    "default",
+                    "defer",
+                    "disabled",
+                    "formnovalidate",
+                    "hidden",
+                    "inert",
+                    "ismap",
+                    "itemscope",
+                    "loop",
+                    "multiple",
+                    "muted",
+                    "nomodule",
+                    "novalidate",
+                    "open",
+                    "playsinline",
+                    "readonly",
+                    "required",
+                    "reversed",
+                    "selected"
+                ]);
+
+                if (booleanAttributes.has(name)) {
+                    return value.value !== "false"
+                        ? name
+                        : "";
+                }
+
+                return `${name}="${this.escapeHTML(value.value)}"`;
+            })
+            .filter(attribute => attribute !== "")
+            .join(" ");
+
+        const attributeString = attributes
+            ? ` ${attributes}`
+            : "";
+
+        if (this.voidElements.has(tagName)) {
+            return `<${tagName}${attributeString}>`;
+        }
+
+        const text = node.text
+            ? this.renderText(node.text)
+            : "";
+
+        const children = node.children
+            .map(child => this.renderNode(child))
+            .join("\n");
+
+        return `<${tagName}${attributeString}>${text}${children}</${tagName}>`;
+    }
+    private isValidTagName(name: string): boolean {
+        return /^[a-z][a-z0-9-]*$/i.test(name);
+    }
+    private isValidAttributeName(name: string): boolean {
+        return /^[a-zA-Z_:][a-zA-Z0-9:._-]*$/.test(name);
+    }
+}
