@@ -521,7 +521,8 @@ describe("pakpourUI IR Generator Integration", () => {
                                         }
                                     ]
                                 }
-                            }
+                            },
+
                         ]
                     },
                     {
@@ -576,8 +577,11 @@ describe("pakpourUI IR Generator Integration", () => {
             const root = new MockElement("root");
 
             generatedModule.render(root, "home");
+            generatedModule.render(root, "home");
 
             expect(root.children).toHaveLength(2);
+            expect(root.getChild(0).textContent).toBe("Increment");
+            expect(root.getChild(1).textContent).toBe("Count: 10");
             expect(root.getChild(0).textContent).toBe("Increment");
             expect(root.getChild(1).textContent).toBe("Count: 10");
 
@@ -677,7 +681,33 @@ describe("pakpourUI IR Generator Integration", () => {
                                         }
                                     ]
                                 }
+                            },
+                            {
+                                id: "conditional_content",
+                                type: "IRCondition" as const,
+                                expression: {
+                                    id: "visible_condition",
+                                    type: "IRBooleanLiteral" as const,
+                                    value: true
+                                },
+                                children: [
+                                    {
+                                        id: "conditional_heading",
+                                        type: "IRHeading" as const,
+                                        level: 1,
+                                        content: {
+                                            segments: [
+                                                {
+                                                    type: "StaticText" as const,
+                                                    value: "Conditional Content"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
                             }
+
+
                         ]
                     }
                 ]
@@ -712,7 +742,17 @@ describe("pakpourUI IR Generator Integration", () => {
 
             generatedModule.render(root, "home");
 
-            expect(root.children).toHaveLength(2);
+            expect(root.children).toHaveLength(3);
+
+            const conditionalScope = root.getChild(2);
+
+            expect(conditionalScope.tagName).toBe("div");
+            expect(conditionalScope.children).toHaveLength(1);
+            expect(conditionalScope.getChild(0).textContent)
+                .toBe("Conditional Content");
+
+            const removeSpy = vi.spyOn(conditionalScope, "remove");
+
             expect(root.getChild(1).textContent).toBe("Count: 10");
 
             // Keep references to the page elements.
@@ -721,6 +761,7 @@ describe("pakpourUI IR Generator Integration", () => {
 
             // Dispose the page.
             generatedModule.disposePage(root);
+            expect(removeSpy).toHaveBeenCalledOnce();
 
             expect(root.children).toHaveLength(0);
 

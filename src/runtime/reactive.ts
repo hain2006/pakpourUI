@@ -21,6 +21,14 @@ export function onCleanup(cleanup: () => void): void {
     activeEffect.cleanups.add(cleanup);
 }
 
+export function registerCleanup(cleanup: () => void): void {
+    if (!activeEffect) {
+        return;
+    }
+
+    activeEffect.cleanups.add(cleanup);
+}
+
 export function signal<T>(initialValue: T) {
     let value = initialValue;
 

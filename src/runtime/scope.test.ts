@@ -185,4 +185,56 @@ describe("pakpourUI Scope Runtime", () => {
         expect(secondPageValues).toEqual([0, 1]);
         expect(root.children).toHaveLength(0);
     });
+    it("should remove child scope elements when rendering a new page", () => {
+        const root = {
+            children: [] as any[],
+
+            appendChild(element: any) {
+                this.children.push(element);
+            },
+
+            replaceChildren() {
+                this.children = [];
+            }
+        };
+
+        const scopeElement = {
+            children: [] as any[],
+            removed: false,
+
+            replaceChildren() {
+                this.children = [];
+            },
+
+            remove() {
+                this.removed = true;
+            }
+        };
+
+        vi.stubGlobal("document", {
+            createElement: () => scopeElement
+        });
+
+        const page = createPageScope(
+            root as unknown as HTMLElement
+        );
+
+        page.render(() => {
+            createScope(
+                root as unknown as HTMLElement,
+                () => { }
+            );
+        });
+
+        expect(root.children).toContain(scopeElement);
+        expect(scopeElement.removed).toBe(false);
+
+        page.render(() => { });
+
+        expect(scopeElement.removed).toBe(true);
+
+        page.dispose();
+
+        vi.unstubAllGlobals();
+    });
 });

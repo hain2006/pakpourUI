@@ -1,4 +1,4 @@
-import { effect } from "./reactive";
+import { effect, registerCleanup } from "./reactive";
 import { createElement } from "./dom";
 
 export function createScope(
@@ -18,19 +18,22 @@ export function createScope(
         render(element);
     }, { scope: true });
 
+
     let disposed = false;
+    const dispose = () => {
+        if (disposed) return;
+
+        disposed = true;
+
+        stop();
+        element.remove();
+    };
+
+    registerCleanup(dispose);
 
     return {
         element,
-
-        dispose() {
-            if (disposed) return;
-
-            disposed = true;
-
-            stop();
-            element.remove();
-        }
+        dispose
     };
 }
 
