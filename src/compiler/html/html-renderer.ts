@@ -36,6 +36,17 @@ export class HTMLRenderer {
         "track",
         "wbr"
     ]);
+    private readonly urlAttributes = new Set([
+        "href",
+        "src",
+        "action",
+        "formaction",
+        "poster",
+        "cite",
+        "data",
+        "background",
+        "xlink:href"
+    ]);
     public render(program: IRProgram): HTMLRenderResult[] {
         const results: HTMLRenderResult[] = [];
 
@@ -369,12 +380,41 @@ export class HTMLRenderer {
             .map(child => this.renderLayoutNode(child))
             .join("\n");
     }
+
     private renderElement(node: IRElement): string {
         const tagName = node.name.toLowerCase();
 
         if (!this.isValidTagName(tagName)) {
             throw new Error(`Invalid HTML tag name: ${node.name}`);
         }
+
+        const booleanAttributes = new Set([
+            "allowfullscreen",
+            "async",
+            "autofocus",
+            "autoplay",
+            "checked",
+            "controls",
+            "default",
+            "defer",
+            "disabled",
+            "formnovalidate",
+            "hidden",
+            "inert",
+            "ismap",
+            "itemscope",
+            "loop",
+            "multiple",
+            "muted",
+            "nomodule",
+            "novalidate",
+            "open",
+            "playsinline",
+            "readonly",
+            "required",
+            "reversed",
+            "selected"
+        ]);
 
         const attributes = (node.attributes ?? [])
             .map(attribute => {
@@ -391,47 +431,41 @@ export class HTMLRenderer {
 
                 const value = attribute.value;
 
+                let resolvedValue: unknown;
+
                 if (value.type === "DynamicAttributeValue") {
+                    resolvedValue = this.evaluateExpression(
+                        value.expression
+                    );
+                } else {
+                    resolvedValue = value.value;
+                }
+
+                if (resolvedValue === null || resolvedValue === undefined) {
+                    return "";
+                }
+                if (
+                    this.urlAttributes.has(name) &&
+                    !this.isSafeURL(String(resolvedValue))
+                ) {
                     throw new Error(
-                        `Dynamic HTML attributes are not supported yet: ${attribute.name}`
+                        `Unsafe URL in HTML attribute '${attribute.name}': ${String(resolvedValue)}`
                     );
                 }
 
-                const booleanAttributes = new Set([
-                    "allowfullscreen",
-                    "async",
-                    "autofocus",
-                    "autoplay",
-                    "checked",
-                    "controls",
-                    "default",
-                    "defer",
-                    "disabled",
-                    "formnovalidate",
-                    "hidden",
-                    "inert",
-                    "ismap",
-                    "itemscope",
-                    "loop",
-                    "multiple",
-                    "muted",
-                    "nomodule",
-                    "novalidate",
-                    "open",
-                    "playsinline",
-                    "readonly",
-                    "required",
-                    "reversed",
-                    "selected"
-                ]);
-
                 if (booleanAttributes.has(name)) {
-                    return value.value !== "false"
-                        ? name
-                        : "";
+                    return resolvedValue === false ||
+                        resolvedValue === "false" ||
+                        resolvedValue === 0
+                        ? ""
+                        : name;
                 }
 
-                return `${name}="${this.escapeHTML(value.value)}"`;
+                if (typeof resolvedValue === "boolean") {
+                    return `${name}="${String(resolvedValue)}"`;
+                }
+
+                return `${name}="${this.escapeHTML(String(resolvedValue))}"`;
             })
             .filter(attribute => attribute !== "")
             .join(" ");
@@ -454,10 +488,34 @@ export class HTMLRenderer {
 
         return `<${tagName}${attributeString}>${text}${children}</${tagName}>`;
     }
+
     private isValidTagName(name: string): boolean {
         return /^[a-z][a-z0-9-]*$/i.test(name);
     }
     private isValidAttributeName(name: string): boolean {
         return /^[a-zA-Z_:][a-zA-Z0-9:._-]*$/.test(name);
+    }
+    private isSafeURL(value: string): boolean {
+        const normalizedValue = value
+            .trim()
+            .replace(/[\u0000-\u0020\u007f-\u009f]/g, "")
+            .toLowerCase();
+
+        // Reject dangerous executable protocols.
+        const unsafeProtocols = [
+            "javascript:",
+            "vbscript:",
+            "data:"
+        ];
+
+        if (
+            unsafeProtocols.some(protocol =>
+                normalizedValue.startsWith(protocol)
+            )
+        ) {
+            return false;
+        }
+
+        return true;
     }
 }

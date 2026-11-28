@@ -1109,4 +1109,406 @@ describe("HTMLRenderer", () => {
 
         expect(result[0]!.html).toContain("<input disabled>");
     });
+    it("should render dynamic string HTML attributes from state", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRState",
+                            name: "placeholder",
+                            symbolId: "symbol_0",
+                            valueType: "string",
+                            declarationOrder: 0,
+                            initialValue: {
+                                type: "IRStringLiteral",
+                                value: "Enter your name"
+                            }
+                        },
+                        {
+                            type: "IRElement",
+                            name: "input",
+                            attributes: [
+                                {
+                                    name: "placeholder",
+                                    value: {
+                                        type: "DynamicAttributeValue",
+                                        expression: {
+                                            type: "IRIdentifier",
+                                            name: "placeholder",
+                                            symbolId: "symbol_0",
+                                            valueType: "string"
+                                        }
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            '<input placeholder="Enter your name">'
+        );
+    });
+
+    it("should render dynamic number HTML attributes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRState",
+                            name: "count",
+                            symbolId: "symbol_1",
+                            valueType: "number",
+                            declarationOrder: 0,
+                            initialValue: {
+                                type: "IRNumberLiteral",
+                                value: 10
+                            }
+                        },
+                        {
+                            type: "IRElement",
+                            name: "input",
+                            attributes: [
+                                {
+                                    name: "value",
+                                    value: {
+                                        type: "DynamicAttributeValue",
+                                        expression: {
+                                            type: "IRIdentifier",
+                                            name: "count",
+                                            symbolId: "symbol_1",
+                                            valueType: "number"
+                                        }
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            '<input value="10">'
+        );
+    });
+
+    it("should render dynamic boolean HTML attributes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRState",
+                            name: "isDisabled",
+                            symbolId: "symbol_2",
+                            valueType: "boolean",
+                            declarationOrder: 0,
+                            initialValue: {
+                                type: "IRBooleanLiteral",
+                                value: true
+                            }
+                        },
+                        {
+                            type: "IRElement",
+                            name: "input",
+                            attributes: [
+                                {
+                                    name: "disabled",
+                                    value: {
+                                        type: "DynamicAttributeValue",
+                                        expression: {
+                                            type: "IRIdentifier",
+                                            name: "isDisabled",
+                                            symbolId: "symbol_2",
+                                            valueType: "boolean"
+                                        }
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain("<input disabled>");
+    });
+
+    it("should omit dynamic boolean attributes when state is false", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRState",
+                            name: "isDisabled",
+                            symbolId: "symbol_3",
+                            valueType: "boolean",
+                            declarationOrder: 0,
+                            initialValue: {
+                                type: "IRBooleanLiteral",
+                                value: false
+                            }
+                        },
+                        {
+                            type: "IRElement",
+                            name: "input",
+                            attributes: [
+                                {
+                                    name: "disabled",
+                                    value: {
+                                        type: "DynamicAttributeValue",
+                                        expression: {
+                                            type: "IRIdentifier",
+                                            name: "isDisabled",
+                                            symbolId: "symbol_3",
+                                            valueType: "boolean"
+                                        }
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain("<input>");
+        expect(result[0]!.html).not.toContain("disabled");
+    });
+
+    it("should escape HTML in dynamic attribute values", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRState",
+                            name: "userInput",
+                            symbolId: "symbol_4",
+                            valueType: "string",
+                            declarationOrder: 0,
+                            initialValue: {
+                                type: "IRStringLiteral",
+                                value: '"Hello" & <World>'
+                            }
+                        },
+                        {
+                            type: "IRElement",
+                            name: "div",
+                            attributes: [
+                                {
+                                    name: "title",
+                                    value: {
+                                        type: "DynamicAttributeValue",
+                                        expression: {
+                                            type: "IRIdentifier",
+                                            name: "userInput",
+                                            symbolId: "symbol_4",
+                                            valueType: "string"
+                                        }
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            'title="&quot;Hello&quot; &amp; &lt;World&gt;"'
+        );
+
+        expect(result[0]!.html).not.toContain(
+            'title="\"Hello\" & <World>"'
+        );
+    });
+    it("should reject javascript URLs in static attributes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => {
+            renderer.render({
+                sites: [],
+                standalonePages: [
+                    {
+                        type: "IRPage",
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "a",
+                                attributes: [
+                                    {
+                                        name: "href",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: "javascript:alert(1)"
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            });
+        }).toThrow("Unsafe URL in HTML attribute 'href'");
+    });
+
+    it("should reject javascript URLs in dynamic attributes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => {
+            renderer.render({
+                sites: [],
+                standalonePages: [
+                    {
+                        type: "IRPage",
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRState",
+                                name: "target",
+                                symbolId: "symbol_5",
+                                valueType: "string",
+                                declarationOrder: 0,
+                                initialValue: {
+                                    type: "IRStringLiteral",
+                                    value: "javascript:alert(1)"
+                                }
+                            },
+                            {
+                                type: "IRElement",
+                                name: "a",
+                                attributes: [
+                                    {
+                                        name: "href",
+                                        value: {
+                                            type: "DynamicAttributeValue",
+                                            expression: {
+                                                type: "IRIdentifier",
+                                                name: "target",
+                                                symbolId: "symbol_5",
+                                                valueType: "string"
+                                            }
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            });
+        }).toThrow("Unsafe URL in HTML attribute 'href'");
+    });
+
+    it("should reject dangerous URL protocols regardless of case", () => {
+        const renderer = new TestHTMLRenderer();
+
+        expect(() => {
+            renderer.render({
+                sites: [],
+                standalonePages: [
+                    {
+                        type: "IRPage",
+                        name: "Home",
+                        children: [
+                            {
+                                type: "IRElement",
+                                name: "a",
+                                attributes: [
+                                    {
+                                        name: "href",
+                                        value: {
+                                            type: "StaticAttributeValue",
+                                            value: "JaVaScRiPt:alert(1)"
+                                        }
+                                    }
+                                ],
+                                children: []
+                            }
+                        ]
+                    }
+                ]
+            });
+        }).toThrow("Unsafe URL");
+    });
+
+    it("should allow safe URLs in HTML attributes", () => {
+        const renderer = new TestHTMLRenderer();
+
+        const result = renderer.render({
+            sites: [],
+            standalonePages: [
+                {
+                    type: "IRPage",
+                    name: "Home",
+                    children: [
+                        {
+                            type: "IRElement",
+                            name: "a",
+                            attributes: [
+                                {
+                                    name: "href",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "https://example.com/about"
+                                    }
+                                },
+                                {
+                                    name: "src",
+                                    value: {
+                                        type: "StaticAttributeValue",
+                                        value: "/images/logo.png"
+                                    }
+                                }
+                            ],
+                            children: []
+                        }
+                    ]
+                }
+            ]
+        });
+
+        expect(result[0]!.html).toContain(
+            '<a href="https://example.com/about" src="/images/logo.png"></a>'
+        );
+    });
 });
