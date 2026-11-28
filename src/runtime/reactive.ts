@@ -11,6 +11,16 @@ type ReactiveEffect = {
 let activeEffect: ReactiveEffect | undefined;
 const effectStack: ReactiveEffect[] = [];
 
+export function onCleanup(cleanup: () => void): void {
+    if (!activeEffect) {
+        throw new Error(
+            "pakpourUI: onCleanup() must be called inside an active effect."
+        );
+    }
+
+    activeEffect.cleanups.add(cleanup);
+}
+
 export function signal<T>(initialValue: T) {
     let value = initialValue;
 

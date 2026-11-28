@@ -1,4 +1,4 @@
-export { signal, effect } from "./reactive";
+export { signal, effect, onCleanup } from "./reactive";
 
 export { createElement, bindText } from "./dom";
 

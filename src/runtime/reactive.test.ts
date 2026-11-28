@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { signal, effect } from "./reactive";
+import { signal, effect, onCleanup} from "./reactive";
+
 
 describe("pakpourUI Reactive Runtime", () => {
 
@@ -249,4 +250,54 @@ describe("pakpourUI Reactive Runtime", () => {
 
         expect(childValues).toEqual([0, 1, 2]);
     });
+
+
+    it("should run cleanup before effect reruns", () => {
+        const count = signal(0);
+        const cleanup = vi.fn();
+        const values: number[] = [];
+
+        const stop = effect(() => {
+            const value = count.value;
+            values.push(value);
+
+            onCleanup(() => {
+                cleanup(value);
+            });
+        });
+
+        count.value = 1;
+
+        expect(cleanup).toHaveBeenCalledTimes(1);
+        expect(cleanup).toHaveBeenCalledWith(0);
+        expect(values).toEqual([0, 1]);
+
+        stop();
+
+        expect(cleanup).toHaveBeenCalledTimes(2);
+        expect(cleanup).toHaveBeenLastCalledWith(1);
+    });
+
+    it("should run cleanup when effect is stopped", () => {
+        const cleanup = vi.fn();
+
+        const stop = effect(() => {
+            onCleanup(cleanup);
+        });
+
+        expect(cleanup).not.toHaveBeenCalled();
+
+        stop();
+
+        expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it("should throw when onCleanup is called outside an effect", () => {
+        expect(() => {
+            onCleanup(() => { });
+        }).toThrow(
+            "pakpourUI: onCleanup() must be called inside an active effect."
+        );
+    });
+
 });
